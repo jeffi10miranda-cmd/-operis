@@ -1,0 +1,267 @@
+// OPERIS — Prisma Schema
+// PostgreSQL + Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// USUÁRIOS
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  OPERADOR
+  VISUALIZADOR
+}
+
+model User {
+  id         String    @id @default(cuid())
+  name       String
+  email      String    @unique
+  password   String
+  role       UserRole  @default(OPERADOR)
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  alertas    Alerta[]
+  sessions   Session[]
+  logs       OperisLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─────────────────────────────────────────────
+// BANCO MESTRE DE PRODUTOS
+// ─────────────────────────────────────────────
+
+model Produto {
+  id              String   @id @default(cuid())
+  codigo          String   @unique
+  descricao       String
+  ciclopadrao     Int      // segundos
+  cavidadepadrao  Int
+  ativo           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  snapshots SnapshotTurno[]
+
+  @@map("produtos")
+}
+
+// ─────────────────────────────────────────────
+// SNAPSHOTS DE TURNO (dados brutos das planilhas)
+// ─────────────────────────────────────────────
+
+enum Turno {
+  PRIMEIRO
+  SEGUNDO
+  TERCEIRO
+}
+
+enum StatusOperacional {
+  EM_PRODUCAO
+  SETUP
+  SETUP_DE_COR
+  REGULAGEM
+  FERRAMENTARIA
+  MANUTENCAO
+  AGUARDANDO_MP
+  AGUARDANDO_TECNICO
+  AGUARDANDO_LIBERACAO
+  AGUARDANDO_ESTUFAGEM
+  REINICIO
+  TRYOUT
+  TROCA_DE_VERSAO
+  FORA_DA_COR_PADRAO
+  INATIVA
+}
+
+model SnapshotTurno {
+  id              String            @id @default(cuid())
+  data            DateTime          @db.Date
+  turno           Turno
+  maquina         String            // ID dinâmico da máquina
+  produtoId       String?
+  produtoNome     String?           // fallback se não encontrado no mestre
+  cicloAtual      Int?              // segundos
+  cavidadeReal    Int?
+  velocidade      Float?
+  status          StatusOperacional
+  observacao      String?
+  divergente      Boolean           @default(false)
+  capturadoEm     DateTime          @default(now())
+
+  produto Produto? @relation(fields: [produtoId], references: [id])
+  alertas Alerta[]
+
+  @@unique([data, turno, maquina])
+  @@index([data])
+  @@index([maquina])
+  @@index([status])
+  @@map("snapshots_turnos")
+}
+
+// ─────────────────────────────────────────────
+// RONDAS DIÁRIAS
+// ─────────────────────────────────────────────
+
+model Ronda {
+  id              String   @id @default(cuid())
+  data            DateTime @db.Date @unique
+  totalMaquinas   Int
+  emProducao      Int      @default(0)
+  emSetup         Int      @default(0)
+  emRegulagem     Int      @default(0)
+  aguardando      Int      @default(0)
+  paradas         Int      @default(0)
+  inativas        Int      @default(0)
+  divergencias    Int      @default(0)
+  totalAlertas    Int      @default(0)
+  processadoEm    DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  detalhesTurnos RondaTurno[]
+
+  @@map("rondas")
+}
+
+model RondaTurno {
+  id            String   @id @default(cuid())
+  rondaId       String
+  turno         Turno
+  totalMaquinas Int
+  emProducao    Int      @default(0)
+  emSetup       Int      @default(0)
+  emRegulagem   Int      @default(0)
+  aguardando    Int      @default(0)
+  paradas       Int      @default(0)
+  inativas      Int      @default(0)
+  divergencias  Int      @default(0)
+
+  ronda Ronda @relation(fields: [rondaId], references: [id], onDelete: Cascade)
+
+  @@unique([rondaId, turno])
+  @@map("rondas_turnos")
+}
+
+// ─────────────────────────────────────────────
+// ALERTAS
+// ─────────────────────────────────────────────
+
+enum AlertaTipo {
+  CICLO_ACIMA
+  CICLO_ABAIXO
+  CAVIDADE_ABAIXO
+  TROCA_PRODUTO
+  MAQUINA_PARADA
+  SETUP_EXCESSIVO
+  RECORRENCIA
+  DIVERGENCIA_PADRAO
+  NOVO_OP
+  SEM_LEITURA
+}
+
+enum AlertaSeveridade {
+  CRITICO
+  ATENCAO
+  INFO
+}
+
+model Alerta {
+  id          String           @id @default(cuid())
+  snapshotId  String?
+  maquina     String
+  tipo        AlertaTipo
+  severidade  AlertaSeveridade
+  titulo      String
+  descricao   String
+  lido        Boolean          @default(false)
+  resolvidoEm DateTime?
+  criadoEm    DateTime         @default(now())
+  criadoPor   String?
+
+  snapshot SnapshotTurno? @relation(fields: [snapshotId], references: [id])
+  usuario  User?          @relation(fields: [criadoPor], references: [id])
+
+  @@index([maquina])
+  @@index([tipo])
+  @@index([lido])
+  @@index([criadoEm])
+  @@map("alertas")
+}
+
+// ─────────────────────────────────────────────
+// CONFIGURAÇÕES DO SISTEMA
+// ─────────────────────────────────────────────
+
+model Configuracao {
+  id    String @id @default(cuid())
+  chave String @unique
+  valor String
+  tipo  String @default("string") // string | number | boolean | json
+
+  @@map("configuracoes")
+}
+
+// ─────────────────────────────────────────────
+// LOG DE AUDITORIA
+// ─────────────────────────────────────────────
+
+enum LogSeveridade {
+  INFO
+  ATENCAO
+  CRITICO
+}
+
+model OperisLog {
+  id         String        @id @default(cuid())
+  userId     String?
+  modulo     String
+  acao       String
+  descricao  String
+  severidade LogSeveridade @default(INFO)
+  createdAt  DateTime      @default(now())
+
+  usuario User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([modulo])
+  @@index([severidade])
+  @@index([createdAt])
+  @@map("logs")
+}
+
+// ─────────────────────────────────────────────
+// INTEGRAÇÕES (GOOGLE SHEETS)
+// ─────────────────────────────────────────────
+
+model Integracao {
+  id             String   @id @default(cuid())
+  nome           String
+  urlGoogleSheet String
+  ativo          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("integrations")
+}

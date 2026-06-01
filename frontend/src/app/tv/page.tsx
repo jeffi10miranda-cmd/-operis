@@ -1,0 +1,624 @@
+'use client';
+
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Play, Settings, Gauge, AlertCircle, Clock, StopCircle, Power,
+  Droplets, RotateCcw, Wrench, Minimize2, TrendingUp, TrendingDown,
+  LayoutGrid, BarChart3, Sun, Moon, ChevronLeft, ChevronRight,
+} from 'lucide-react';
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts';
+import { useKPIs, useSnapshotsHoje } from '@/lib/api';
+import type { KPIsData, Snapshot } from '@/types/operis';
+import { OperisLogoFull } from '@/components/operis-logo';
+
+// ── Tema ──────────────────────────────────────
+type Theme = 'dark' | 'light';
+
+const T = {
+  dark: {
+    page:            { background: 'linear-gradient(180deg,#050d15 0%,#071219 60%,#040a10 100%)' } as React.CSSProperties,
+    headerCls:       'border-white/5',
+    headerStyle:     {} as React.CSSProperties,
+    card:            { background: 'rgba(255,255,255,0.03)' } as React.CSSProperties,
+    cardBorder:      'border-white/8',
+    textPrimary:     'text-white',
+    textSecondary:   'text-slate-300',
+    textMuted:       'text-slate-500',
+    divider:         'divide-white/5',
+    borderColor:     'border-white/8',
+    rowHover:        'hover:bg-white/[0.03]',
+    grid:            'rgba(255,255,255,0.05)',
+    axis:            '#475569',
+    toggleWrap:      'bg-white/5 border-white/10',
+    toggleActive:    'bg-white/15 text-white',
+    toggleInactive:  'text-slate-400 hover:text-slate-200',
+    exitBtn:         'bg-white/10 border-white/10 text-slate-300 hover:bg-white/20',
+    tooltipStyle:    { background: 'rgba(5,13,21,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '6px 10px', fontSize: 11 } as React.CSSProperties,
+    footerBorder:    'border-white/5',
+  },
+  light: {
+    page:            { background: '#eef2f7' } as React.CSSProperties,
+    headerCls:       'border-gray-200 shadow-sm',
+    headerStyle:     { background: '#ffffff' } as React.CSSProperties,
+    card:            { background: '#ffffff' } as React.CSSProperties,
+    cardBorder:      'border-gray-200',
+    textPrimary:     'text-gray-900',
+    textSecondary:   'text-gray-700',
+    textMuted:       'text-gray-500',
+    divider:         'divide-gray-100',
+    borderColor:     'border-gray-200',
+    rowHover:        'hover:bg-gray-50',
+    grid:            'rgba(0,0,0,0.08)',
+    axis:            '#64748b',
+    toggleWrap:      'bg-gray-100 border-gray-200',
+    toggleActive:    'bg-white text-gray-900 shadow-sm',
+    toggleInactive:  'text-gray-500 hover:text-gray-700',
+    exitBtn:         'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm',
+    tooltipStyle:    { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '6px 10px', fontSize: 11, color: '#1e293b' } as React.CSSProperties,
+    footerBorder:    'border-gray-100',
+  },
+} as const;
+
+// ── Mock data ─────────────────────────────────
+const MOCK_KPIS: KPIsData = {
+  total: 30, emProducao: 18, setup: 5, regulagem: 3, aguardando: 4,
+  paradas: 4, inativas: 2, divergentes: 6, ultimaAtualizacao: null,
+};
+
+const MOCK_SNAPSHOTS: Snapshot[] = [
+  { id:'1',  data:'', turno:'SEGUNDO', maquina:'MÁQ 01', produtoNome:'Frasco reto 12',  cicloAtual:50, cavidadeReal:24, velocidade:120, status:'EM_PRODUCAO', observacao:null, divergente:false, produto:{id:'',codigo:'',descricao:'Frasco reto 12',  ciclopadrao:50, cavidadepadrao:24, ativo:true, createdAt:''} },
+  { id:'2',  data:'', turno:'SEGUNDO', maquina:'MÁQ 02', produtoNome:'Tampa Kelly',     cicloAtual:20, cavidadeReal:16, velocidade:110, status:'SETUP',       observacao:null, divergente:false, produto:{id:'',codigo:'',descricao:'Tampa Kelly',     ciclopadrao:20, cavidadepadrao:16, ativo:true, createdAt:''} },
+  { id:'3',  data:'', turno:'SEGUNDO', maquina:'MÁQ 03', produtoNome:'Haste 48 mm',     cicloAtual:30, cavidadeReal:32, velocidade:95,  status:'REGULAGEM',   observacao:null, divergente:true,  produto:{id:'',codigo:'',descricao:'Haste 48 mm',     ciclopadrao:30, cavidadepadrao:28, ativo:true, createdAt:''} },
+  { id:'4',  data:'', turno:'SEGUNDO', maquina:'MÁQ 04', produtoNome:'Frasco 500ml',    cicloAtual:0,  cavidadeReal:0,  velocidade:0,   status:'PARADA',      observacao:'Aguardando técnico', divergente:false, produto:{id:'',codigo:'',descricao:'Frasco 500ml',    ciclopadrao:45, cavidadepadrao:20, ativo:true, createdAt:''} },
+  { id:'5',  data:'', turno:'SEGUNDO', maquina:'MÁQ 05', produtoNome:'Tampa Rosca',     cicloAtual:15, cavidadeReal:32, velocidade:130, status:'EM_PRODUCAO', observacao:null, divergente:false, produto:{id:'',codigo:'',descricao:'Tampa Rosca',     ciclopadrao:15, cavidadepadrao:32, ativo:true, createdAt:''} },
+  { id:'6',  data:'', turno:'SEGUNDO', maquina:'MÁQ 06', produtoNome:'Haste 30 mm',     cicloAtual:25, cavidadeReal:16, velocidade:100, status:'SETUP_DE_COR',observacao:null, divergente:false, produto:{id:'',codigo:'',descricao:'Haste 30 mm',     ciclopadrao:22, cavidadepadrao:16, ativo:true, createdAt:''} },
+  { id:'7',  data:'', turno:'SEGUNDO', maquina:'MÁQ 07', produtoNome:'Frasco reto 8',   cicloAtual:42, cavidadeReal:24, velocidade:115, status:'EM_PRODUCAO', observacao:null, divergente:false, produto:{id:'',codigo:'',descricao:'Frasco reto 8',   ciclopadrao:42, cavidadepadrao:24, ativo:true, createdAt:''} },
+  { id:'8',  data:'', turno:'SEGUNDO', maquina:'MÁQ 08', produtoNome:'—',               cicloAtual:0,  cavidadeReal:0,  velocidade:0,   status:'INATIVA',     observacao:null, divergente:false, produto:null },
+  { id:'9',  data:'', turno:'SEGUNDO', maquina:'MÁQ 09', produtoNome:'Caixinha 200ml',  cicloAtual:60, cavidadeReal:12, velocidade:90,  status:'AGUARDANDO_MP',observacao:null,divergente:true,  produto:{id:'',codigo:'',descricao:'Caixinha 200ml',  ciclopadrao:55, cavidadepadrao:16, ativo:true, createdAt:''} },
+  { id:'10', data:'', turno:'SEGUNDO', maquina:'MÁQ 10', produtoNome:'Tampa Flip Top',  cicloAtual:18, cavidadeReal:48, velocidade:140, status:'EM_PRODUCAO', observacao:null, divergente:false, produto:{id:'',codigo:'',descricao:'Tampa Flip Top',  ciclopadrao:18, cavidadepadrao:48, ativo:true, createdAt:''} },
+];
+
+const MOCK_ALERTS = [
+  { id:'1', machine:'MÁQ 04', title:'Ciclo aumentado +5s acima do padrão', sev:'danger' },
+  { id:'2', machine:'MÁQ 09', title:'Cavidade abaixo do padrão', sev:'danger' },
+  { id:'3', machine:'MÁQ 03', title:'Divergência detectada no ciclo', sev:'warning' },
+  { id:'4', machine:'MÁQ 06', title:'Troca de produto (Setup de Cor)', sev:'info' },
+];
+
+// ── Dados dos gráficos ────────────────────────
+const BAR_DATA = [
+  { turno:'1º Turno', anterior:5200, atual:4800 },
+  { turno:'2º Turno', anterior:6100, atual:7200 },
+  { turno:'3º Turno', anterior:5800, atual:6450 },
+];
+
+const LINE_DATA = [
+  { t:'00h', anterior:20, atual:22 },
+  { t:'04h', anterior:22, atual:24 },
+  { t:'08h', anterior:21, atual:26 },
+  { t:'12h', anterior:23, atual:25 },
+  { t:'16h', anterior:22, atual:27 },
+  { t:'20h', anterior:24, atual:23 },
+  { t:'24h', anterior:23, atual:25 },
+];
+
+const PIE_DATA = [
+  { name:'Em produção', value:18, color:'#22c55e' },
+  { name:'Setup',       value:5,  color:'#f59e0b' },
+  { name:'Regulagem',   value:3,  color:'#a855f7' },
+  { name:'Aguardando',  value:4,  color:'#f97316' },
+  { name:'Paradas',     value:3,  color:'#ef4444' },
+  { name:'Inativas',    value:2,  color:'#94a3b8' },
+];
+
+const COMP_KPI = [
+  { label:'Ciclo médio',    value:'23,4s',     delta:'+9,9%',  up:true  },
+  { label:'Produção total', value:'18.450 un', delta:'+8,7%',  up:false },
+  { label:'Setup/Ajustes',  value:'11h 23m',   delta:'+11,2%', up:true  },
+  { label:'Paradas',        value:'5h 45m',    delta:'-8,0%',  up:false },
+  { label:'Disponibilidade',value:'86,3%',     delta:'-2,4%',  up:true  },
+  { label:'Eficiência',     value:'76,8%',     delta:'+3,6%',  up:false },
+];
+
+// ── Status config — dark e light ──────────────
+const STATUS_DARK: Record<string, { label:string; bg:string; icon:React.ElementType; dot:string }> = {
+  EM_PRODUCAO:          { label:'Em Produção',   bg:'bg-green-500/20 border-green-500/40 text-green-400',    icon:Play,        dot:'bg-green-400' },
+  SETUP:                { label:'Setup',          bg:'bg-amber-400/20 border-amber-400/40 text-amber-300',    icon:Settings,    dot:'bg-amber-400' },
+  SETUP_DE_COR:         { label:'Setup de Cor',   bg:'bg-amber-400/20 border-amber-400/40 text-amber-300',    icon:Droplets,    dot:'bg-amber-400' },
+  REGULAGEM:            { label:'Regulagem',      bg:'bg-purple-500/20 border-purple-500/40 text-purple-400', icon:Gauge,       dot:'bg-purple-400' },
+  MANUTENCAO:           { label:'Manutenção',     bg:'bg-red-500/20 border-red-500/40 text-red-400',          icon:Wrench,      dot:'bg-red-400' },
+  FERRAMENTARIA:        { label:'Ferramentaria',  bg:'bg-red-500/20 border-red-500/40 text-red-400',          icon:Wrench,      dot:'bg-red-400' },
+  AGUARDANDO_MP:        { label:'Aguard. MP',     bg:'bg-orange-400/20 border-orange-400/40 text-orange-400', icon:Clock,       dot:'bg-orange-400' },
+  AGUARDANDO_TECNICO:   { label:'Aguard. Tec.',   bg:'bg-orange-400/20 border-orange-400/40 text-orange-400', icon:Clock,       dot:'bg-orange-400' },
+  AGUARDANDO_LIBERACAO: { label:'Aguard. Lib.',   bg:'bg-orange-400/20 border-orange-400/40 text-orange-400', icon:Clock,       dot:'bg-orange-400' },
+  AGUARDANDO_ESTUFAGEM: { label:'Aguard. Est.',   bg:'bg-orange-400/20 border-orange-400/40 text-orange-400', icon:Clock,       dot:'bg-orange-400' },
+  PARADA:               { label:'Parada',         bg:'bg-red-600/20 border-red-600/40 text-red-400',          icon:StopCircle,  dot:'bg-red-500' },
+  INATIVA:              { label:'Inativa',        bg:'bg-slate-500/20 border-slate-500/40 text-slate-400',    icon:Power,       dot:'bg-slate-500' },
+  REINICIO:             { label:'Reinício',       bg:'bg-purple-400/20 border-purple-400/40 text-purple-400', icon:RotateCcw,   dot:'bg-purple-400' },
+  TRYOUT:               { label:'Tryout',         bg:'bg-purple-500/20 border-purple-500/40 text-purple-400', icon:Gauge,       dot:'bg-purple-400' },
+  TROCA_DE_VERSAO:      { label:'Troca Versão',   bg:'bg-amber-400/20 border-amber-400/40 text-amber-300',    icon:Settings,    dot:'bg-amber-400' },
+  FORA_DA_COR_PADRAO:   { label:'Fora Cor Padr.', bg:'bg-amber-500/20 border-amber-500/40 text-amber-400',    icon:AlertCircle, dot:'bg-amber-500' },
+};
+
+const STATUS_LIGHT: Record<string, { label:string; bg:string; icon:React.ElementType; dot:string }> = {
+  EM_PRODUCAO:          { label:'Em Produção',   bg:'bg-green-50 border-green-300 text-green-700',    icon:Play,        dot:'bg-green-500' },
+  SETUP:                { label:'Setup',          bg:'bg-amber-50 border-amber-300 text-amber-700',    icon:Settings,    dot:'bg-amber-400' },
+  SETUP_DE_COR:         { label:'Setup de Cor',   bg:'bg-amber-50 border-amber-300 text-amber-700',    icon:Droplets,    dot:'bg-amber-400' },
+  REGULAGEM:            { label:'Regulagem',      bg:'bg-purple-50 border-purple-300 text-purple-700', icon:Gauge,       dot:'bg-purple-500' },
+  MANUTENCAO:           { label:'Manutenção',     bg:'bg-red-50 border-red-300 text-red-700',          icon:Wrench,      dot:'bg-red-500' },
+  FERRAMENTARIA:        { label:'Ferramentaria',  bg:'bg-red-50 border-red-300 text-red-700',          icon:Wrench,      dot:'bg-red-500' },
+  AGUARDANDO_MP:        { label:'Aguard. MP',     bg:'bg-orange-50 border-orange-300 text-orange-700', icon:Clock,       dot:'bg-orange-400' },
+  AGUARDANDO_TECNICO:   { label:'Aguard. Tec.',   bg:'bg-orange-50 border-orange-300 text-orange-700', icon:Clock,       dot:'bg-orange-400' },
+  AGUARDANDO_LIBERACAO: { label:'Aguard. Lib.',   bg:'bg-orange-50 border-orange-300 text-orange-700', icon:Clock,       dot:'bg-orange-400' },
+  AGUARDANDO_ESTUFAGEM: { label:'Aguard. Est.',   bg:'bg-orange-50 border-orange-300 text-orange-700', icon:Clock,       dot:'bg-orange-400' },
+  PARADA:               { label:'Parada',         bg:'bg-red-50 border-red-400 text-red-700',          icon:StopCircle,  dot:'bg-red-600' },
+  INATIVA:              { label:'Inativa',        bg:'bg-slate-100 border-slate-300 text-slate-500',   icon:Power,       dot:'bg-slate-400' },
+  REINICIO:             { label:'Reinício',       bg:'bg-purple-50 border-purple-300 text-purple-700', icon:RotateCcw,   dot:'bg-purple-400' },
+  TRYOUT:               { label:'Tryout',         bg:'bg-purple-50 border-purple-300 text-purple-700', icon:Gauge,       dot:'bg-purple-400' },
+  TROCA_DE_VERSAO:      { label:'Troca Versão',   bg:'bg-amber-50 border-amber-300 text-amber-700',    icon:Settings,    dot:'bg-amber-400' },
+  FORA_DA_COR_PADRAO:   { label:'Fora Cor Padr.', bg:'bg-orange-50 border-orange-300 text-orange-700', icon:AlertCircle, dot:'bg-orange-500' },
+};
+
+const FALLBACK_DARK = { label:'', bg:'bg-slate-500/20 border-slate-500/40 text-slate-400', icon:Clock, dot:'bg-slate-500' };
+const FALLBACK_LIGHT = { label:'', bg:'bg-slate-100 border-slate-300 text-slate-500',       icon:Clock, dot:'bg-slate-400' };
+
+// ── TV Machine Card ───────────────────────────
+function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }) {
+  const map   = theme === 'dark' ? STATUS_DARK : STATUS_LIGHT;
+  const fall  = theme === 'dark' ? FALLBACK_DARK : FALLBACK_LIGHT;
+  const cfg   = map[snapshot.status] ?? { ...fall, label: snapshot.status };
+  const Icon  = cfg.icon;
+
+  const cycleOff =
+    snapshot.cicloAtual && snapshot.produto?.ciclopadrao
+      ? Math.round(((snapshot.cicloAtual - snapshot.produto.ciclopadrao) / snapshot.produto.ciclopadrao) * 100)
+      : null;
+
+  const cavityBad =
+    snapshot.cavidadeReal != null &&
+    snapshot.produto?.cavidadepadrao != null &&
+    snapshot.cavidadeReal < snapshot.produto.cavidadepadrao;
+
+  const numBg   = theme === 'dark' ? 'bg-black/20' : 'bg-black/5';
+  const numText = theme === 'dark' ? 'text-slate-300' : 'text-gray-700';
+  const prodTxt = theme === 'dark' ? 'text-slate-300' : 'text-gray-600';
+  const nameTxt = theme === 'dark' ? 'text-white' : 'text-gray-900';
+
+  return (
+    <div className={`rounded-2xl border p-4 flex flex-col gap-2.5 ${cfg.bg} ${snapshot.divergente ? 'ring-2 ring-amber-400/60' : ''}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+          <span className={`font-bold text-base leading-none ${nameTxt}`}>{snapshot.maquina}</span>
+        </div>
+        <Icon size={16} className="opacity-50" />
+      </div>
+
+      <span className="text-[11px] font-bold uppercase tracking-wide opacity-90 leading-none">{cfg.label}</span>
+
+      <p className={`text-xs leading-tight line-clamp-1 font-medium ${prodTxt}`}>
+        {snapshot.produtoNome || snapshot.produto?.descricao || '—'}
+      </p>
+
+      <div className="grid grid-cols-2 gap-1.5 mt-auto">
+        <div className={`${numBg} rounded-lg px-2 py-1.5 text-center`}>
+          <p className="text-[9px] text-slate-400 uppercase tracking-wide leading-none mb-0.5">Ciclo</p>
+          <p className={`text-sm font-bold leading-none ${
+            cycleOff === null ? numText :
+            cycleOff > 5 ? 'text-red-500' :
+            cycleOff < -5 ? 'text-blue-500' : 'text-green-500'
+          }`}>
+            {snapshot.cicloAtual ? `${snapshot.cicloAtual}s` : '—'}
+            {cycleOff !== null && cycleOff !== 0 && (
+              <span className="text-[10px] ml-1 opacity-60">{cycleOff > 0 ? `+${cycleOff}` : cycleOff}%</span>
+            )}
+          </p>
+        </div>
+        <div className={`${numBg} rounded-lg px-2 py-1.5 text-center`}>
+          <p className="text-[9px] text-slate-400 uppercase tracking-wide leading-none mb-0.5">Cavidade</p>
+          <p className={`text-sm font-bold leading-none ${cavityBad ? 'text-red-500' : numText}`}>
+            {snapshot.cavidadeReal ?? '—'}
+            {snapshot.produto?.cavidadepadrao ? (
+              <span className="text-[10px] opacity-40">/{snapshot.produto.cavidadepadrao}</span>
+            ) : null}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TV Comparativo — apenas gráficos ─────────
+function TvComparativo({ theme }: { theme: Theme }) {
+  const tk = T[theme];
+
+  return (
+    <div className="flex flex-col gap-3 h-full">
+      {/* KPI strip */}
+      <div className="grid grid-cols-6 gap-3 flex-shrink-0">
+        {COMP_KPI.map((k) => (
+          <div key={k.label} className={`rounded-2xl border ${tk.cardBorder} px-4 py-3 flex flex-col gap-1`} style={tk.card}>
+            <p className={`text-[10px] uppercase tracking-widest leading-none ${tk.textMuted}`}>{k.label}</p>
+            <p className={`text-xl font-bold tabular-nums leading-none ${tk.textPrimary}`}>{k.value}</p>
+            <div className="flex items-center gap-1">
+              {k.up
+                ? <TrendingUp  size={11} className="text-red-500 flex-shrink-0" />
+                : <TrendingDown size={11} className="text-green-500 flex-shrink-0" />}
+              <span className={`text-[11px] font-semibold ${k.up ? 'text-red-500' : 'text-green-500'}`}>{k.delta}</span>
+              <span className={`text-[10px] ml-0.5 ${tk.textMuted}`}>vs. ant.</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 3 gráficos em colunas iguais */}
+      <div className="flex-1 grid grid-cols-3 gap-3 min-h-0">
+
+        {/* Barras — Produção por turno */}
+        <div className={`rounded-2xl border ${tk.cardBorder} p-5 flex flex-col`} style={tk.card}>
+          <p className={`text-sm font-bold mb-0.5 ${tk.textPrimary}`}>Produção por turno</p>
+          <p className={`text-[11px] mb-4 ${tk.textMuted}`}>Unidades — período anterior vs. atual</p>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={BAR_DATA} barSize={20} margin={{ top:4, right:8, bottom:0, left:-10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={tk.grid} vertical={false} />
+                <XAxis dataKey="turno" tick={{ fontSize:10, fill:tk.axis }} stroke="transparent" />
+                <YAxis tick={{ fontSize:10, fill:tk.axis }} stroke="transparent" />
+                <Tooltip contentStyle={tk.tooltipStyle} cursor={{ fill: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }} />
+                <Bar dataKey="anterior" fill={theme === 'dark' ? 'rgba(255,255,255,0.12)' : '#cbd5e1'} name="Anterior" radius={[4,4,0,0]} />
+                <Bar dataKey="atual"    fill="#3b82f6" name="Atual" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex gap-4 mt-3 flex-shrink-0">
+            <span className={`flex items-center gap-1.5 text-[11px] ${tk.textMuted}`}>
+              <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.2)' : '#cbd5e1' }} /> Anterior
+            </span>
+            <span className={`flex items-center gap-1.5 text-[11px] ${tk.textSecondary}`}>
+              <span className="w-3 h-2.5 rounded-sm bg-blue-500 inline-block" /> Atual
+            </span>
+          </div>
+        </div>
+
+        {/* Linha — Evolução do ciclo médio */}
+        <div className={`rounded-2xl border ${tk.cardBorder} p-5 flex flex-col`} style={tk.card}>
+          <p className={`text-sm font-bold mb-0.5 ${tk.textPrimary}`}>Evolução do ciclo médio</p>
+          <p className={`text-[11px] mb-4 ${tk.textMuted}`}>Segundos ao longo do dia</p>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={LINE_DATA} margin={{ top:4, right:8, bottom:0, left:-10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={tk.grid} />
+                <XAxis dataKey="t" tick={{ fontSize:10, fill:tk.axis }} stroke="transparent" />
+                <YAxis tick={{ fontSize:10, fill:tk.axis }} stroke="transparent" />
+                <Tooltip contentStyle={tk.tooltipStyle} />
+                <Line type="monotone" dataKey="anterior" stroke={theme === 'dark' ? 'rgba(255,255,255,0.3)' : '#94a3b8'} strokeWidth={2} dot={false} strokeDasharray="5 3" name="Anterior" />
+                <Line type="monotone" dataKey="atual"    stroke="#22c55e" strokeWidth={2.5} dot={false} name="Atual" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex gap-4 mt-3 flex-shrink-0">
+            <span className={`flex items-center gap-1.5 text-[11px] ${tk.textMuted}`}>
+              <span className="w-5 border-b-2 border-dashed inline-block" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.3)' : '#94a3b8' }} /> Anterior
+            </span>
+            <span className={`flex items-center gap-1.5 text-[11px] ${tk.textSecondary}`}>
+              <span className="w-5 border-b-2 border-green-500 inline-block" /> Atual
+            </span>
+          </div>
+        </div>
+
+        {/* Donut — Distribuição de status */}
+        <div className={`rounded-2xl border ${tk.cardBorder} p-5 flex flex-col`} style={tk.card}>
+          <p className={`text-sm font-bold mb-4 ${tk.textPrimary}`}>Distribuição de status</p>
+          <div className="flex items-center gap-4 flex-1 min-h-0">
+            <div className="relative flex-shrink-0" style={{ width:160, height:160 }}>
+              <ResponsiveContainer width={160} height={160}>
+                <PieChart>
+                  <Pie data={PIE_DATA} cx="50%" cy="50%" innerRadius={48} outerRadius={72} dataKey="value" startAngle={90} endAngle={-270}>
+                    {PIE_DATA.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className={`text-2xl font-black ${tk.textPrimary}`}>30</span>
+                <span className={`text-[10px] ${tk.textMuted}`}>Máquinas</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2.5 flex-1">
+              {PIE_DATA.map((d) => (
+                <div key={d.name} className="flex items-center justify-between">
+                  <span className={`flex items-center gap-2 text-xs ${tk.textSecondary}`}>
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
+                    {d.name}
+                  </span>
+                  <span className={`text-sm font-bold tabular-nums ${tk.textPrimary}`}>
+                    {d.value}
+                    <span className={`text-[10px] font-normal ml-1 ${tk.textMuted}`}>
+                      ({Math.round(d.value / 30 * 100)}%)
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── Relógio ───────────────────────────────────
+function LiveClock({ theme }: { theme: Theme }) {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const tk = T[theme];
+  if (!now) return <div className="w-24" />;
+  return (
+    <div className="text-right leading-none">
+      <p className={`text-2xl font-bold tabular-nums ${tk.textPrimary}`}>
+        {now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' })}
+      </p>
+      <p className={`text-xs mt-0.5 ${tk.textMuted}`}>
+        {now.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' })}
+      </p>
+    </div>
+  );
+}
+
+// ── Página principal ──────────────────────────
+type TvView = 'maquinas' | 'comparativo';
+
+export default function TvPage() {
+  const router = useRouter();
+  const [view,    setView]    = useState<TvView>('maquinas');
+  const [theme,   setTheme]   = useState<Theme>('dark');
+  const [kpiOpen, setKpiOpen] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: kpisData,     error: kpiError  } = useKPIs();
+  const { data: snapshotsData,error: snapError } = useSnapshotsHoje();
+
+  const kpis      = (kpisData      as KPIsData   | undefined) ?? MOCK_KPIS;
+  const snapshots = useMemo(() => (snapshotsData as Snapshot[] | undefined) ?? MOCK_SNAPSHOTS, [snapshotsData]);
+  const isPreview = Boolean(kpiError || snapError);
+  const tk        = T[theme];
+
+  useEffect(() => {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    return () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
+  }, []);
+
+  const resetHideTimer = useCallback(() => {
+    setControlsVisible(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setControlsVisible(false), 4000);
+  }, []);
+
+  useEffect(() => {
+    resetHideTimer();
+    window.addEventListener('mousemove', resetHideTimer);
+    window.addEventListener('keydown',   resetHideTimer);
+    return () => {
+      window.removeEventListener('mousemove', resetHideTimer);
+      window.removeEventListener('keydown',   resetHideTimer);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+  }, [resetHideTimer]);
+
+  const handleExit = useCallback(() => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    router.push('/central');
+  }, [router]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleExit(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleExit]);
+
+  const kpiStrip = [
+    { label:'Em produção',     value: kpis.emProducao,  color:'text-green-500'  },
+    { label:'Setup / ajustes', value: kpis.setup,       color:'text-amber-500'  },
+    { label:'Regulagem',       value: kpis.regulagem,   color:'text-purple-500' },
+    { label:'Aguardando',      value: kpis.aguardando,  color:'text-orange-500' },
+    { label:'Paradas',         value: kpis.paradas,     color:'text-red-500'    },
+    { label:'Inativas',        value: kpis.inativas,    color:'text-slate-400'  },
+    { label:'Divergentes',     value: kpis.divergentes, color:'text-amber-400'  },
+  ];
+
+  return (
+    <div className="fixed inset-0 flex flex-col overflow-hidden select-none" style={tk.page}>
+
+      {/* ── Header ── */}
+      <header className={`flex-shrink-0 flex items-center gap-3 px-6 py-3 border-b ${tk.headerCls}`} style={tk.headerStyle}>
+        {/* Logo */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <OperisLogoFull variant={theme === 'light' ? 'light' : 'dark'} />
+          {isPreview && (
+            <span className="text-[10px] bg-amber-500/20 text-amber-500 border border-amber-500/30 px-2 py-0.5 rounded-full font-semibold">
+              Visualização
+            </span>
+          )}
+        </div>
+
+        <div className={`h-6 w-px flex-shrink-0 ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`} />
+
+        {/* Toggle view */}
+        <div className={`flex items-center gap-1 border rounded-xl p-1 flex-shrink-0 ${tk.toggleWrap}`}>
+          <button
+            onClick={() => setView('maquinas')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'maquinas' ? tk.toggleActive : tk.toggleInactive}`}
+          >
+            <LayoutGrid size={13} /> Máquinas
+          </button>
+          <button
+            onClick={() => setView('comparativo')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'comparativo' ? tk.toggleActive : tk.toggleInactive}`}
+          >
+            <BarChart3 size={13} /> Comparativo
+          </button>
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Toggle dark/light */}
+        <div className={`flex items-center gap-1 border rounded-xl p-1 flex-shrink-0 ${tk.toggleWrap}`}>
+          <button
+            onClick={() => setTheme('dark')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${theme === 'dark' ? tk.toggleActive : tk.toggleInactive}`}
+            title="Tema escuro"
+          >
+            <Moon size={13} /> Dark
+          </button>
+          <button
+            onClick={() => setTheme('light')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${theme === 'light' ? tk.toggleActive : tk.toggleInactive}`}
+            title="Tema claro"
+          >
+            <Sun size={13} /> Light
+          </button>
+        </div>
+
+        <div className={`h-6 w-px flex-shrink-0 ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`} />
+
+        {/* Relógio + Ao vivo */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className={`hidden md:flex items-center gap-1.5 text-xs ${tk.textMuted}`}>
+            <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_rgba(74,222,128,0.7)]" />
+            <span>Ao vivo</span>
+          </div>
+          <LiveClock theme={theme} />
+        </div>
+
+        <div className={`h-6 w-px flex-shrink-0 ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`} />
+
+        {/* Sair da TV — no header, some com mouse parado */}
+        <button
+          onClick={handleExit}
+          className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold border transition-all ${tk.exitBtn} ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          style={{ transition: 'opacity 0.4s ease' }}
+        >
+          <Minimize2 size={14} /> Sair da TV
+        </button>
+      </header>
+
+      {/* ── Conteúdo + Sidebar KPI ── */}
+      <main className="flex-1 overflow-hidden flex min-h-0">
+
+        {/* Área principal */}
+        <div className="flex-1 overflow-hidden px-5 py-4 min-w-0">
+          {view === 'maquinas' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 h-full overflow-y-auto">
+              {snapshots.map((s) => (
+                <TvMachineCard key={s.id} snapshot={s} theme={theme} />
+              ))}
+            </div>
+          ) : (
+            <TvComparativo theme={theme} />
+          )}
+        </div>
+
+        {/* ── Sidebar KPI (só na view máquinas) ── */}
+        {view === 'maquinas' && (
+          <div className="flex-shrink-0 flex">
+
+            {/* Tab de toggle */}
+            <button
+              onClick={() => setKpiOpen(!kpiOpen)}
+              className={`w-8 flex-shrink-0 flex flex-col items-center justify-center gap-2 border-l transition-colors ${
+                theme === 'dark'
+                  ? 'border-white/8 hover:bg-white/5 text-slate-400 hover:text-white'
+                  : 'border-gray-200 hover:bg-gray-100 text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <span
+                className={`text-[9px] font-bold uppercase tracking-widest select-none ${tk.textMuted}`}
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+              >
+                KPIs
+              </span>
+              {kpiOpen
+                ? <ChevronRight size={12} />
+                : <ChevronLeft size={12} />}
+            </button>
+
+            {/* Painel de KPIs */}
+            <div
+              style={{ width: kpiOpen ? 184 : 0, overflow: 'hidden', transition: 'width 0.3s ease', flexShrink: 0 }}
+            >
+              <div
+                className={`h-full flex flex-col gap-2 p-3 border-l overflow-y-auto ${tk.borderColor}`}
+                style={{ ...tk.headerStyle, width: 184, minWidth: 184 }}
+              >
+                <p className={`text-[9px] font-bold uppercase tracking-[0.14em] px-1 mb-1 ${tk.textMuted}`}>Status operacional</p>
+
+                {kpiStrip.map((k) => (
+                  <div
+                    key={k.label}
+                    className={`rounded-xl border px-3 py-2.5 flex flex-col ${
+                      theme === 'dark' ? 'bg-white/[0.05] border-white/10' : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <p className={`text-3xl font-light tabular-nums leading-none ${k.color}`}>{k.value}</p>
+                    <p className={`text-[10px] font-semibold mt-1.5 leading-snug ${tk.textMuted}`}>{k.label}</p>
+                  </div>
+                ))}
+
+                {/* Separador + Total */}
+                <div className={`h-px mt-1 ${theme === 'dark' ? 'bg-white/8' : 'bg-gray-200'}`} />
+                <div
+                  className={`rounded-xl border px-3 py-2.5 flex flex-col ${
+                    theme === 'dark' ? 'bg-white/[0.05] border-white/10' : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <p className={`text-3xl font-light tabular-nums leading-none ${tk.textPrimary}`}>{kpis.total}</p>
+                  <p className={`text-[10px] font-semibold mt-1.5 leading-snug ${tk.textMuted}`}>Total de máquinas</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        )}
+      </main>
+
+      {/* ── Ticker de alertas (só view máquinas) ── */}
+      {view === 'maquinas' && MOCK_ALERTS.length > 0 && (
+        <footer className={`flex-shrink-0 border-t flex items-center gap-0 overflow-hidden ${tk.footerBorder}`} style={tk.headerStyle}>
+          {/* Label fixo */}
+          <div className={`flex items-center gap-1.5 px-4 py-2.5 flex-shrink-0 border-r ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
+            <TrendingUp size={13} className="text-red-500" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-red-500">Alertas</span>
+          </div>
+          {/* Trilho animado */}
+          <div className="flex-1 overflow-hidden">
+            <div className="tv-ticker-track">
+              {/* duplicado para loop seamless */}
+              {[...MOCK_ALERTS, ...MOCK_ALERTS].map((a, i) => (
+                <span key={i} className={`inline-flex items-center gap-2 text-xs whitespace-nowrap px-6 py-2.5 ${tk.textMuted}`}>
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    a.sev === 'danger' ? 'bg-red-500' :
+                    a.sev === 'warning' ? 'bg-amber-400' : 'bg-blue-400'
+                  }`} />
+                  <span className={`font-bold ${tk.textSecondary}`}>{a.machine}</span>
+                  <span>{a.title}</span>
+                  <span className={`mx-4 ${theme === 'dark' ? 'text-white/10' : 'text-gray-200'}`}>◆</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </footer>
+      )}
+
+    </div>
+  );
+}

@@ -1,0 +1,264 @@
+'use client';
+
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import {
+  AlertCircle, TrendingUp, LayoutGrid, List, ChevronDown, Clock, Gauge,
+} from 'lucide-react';
+import { MachineCard } from '@/components/machine-card';
+import { CentralSkeleton } from '@/components/skeleton';
+import { useKPIs, useSnapshotsHoje } from '@/lib/api';
+import { useSocket } from '@/hooks/useSocket';
+import type { KPIsData, Snapshot } from '@/types/operis';
+import {
+  LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip,
+  PieChart, Pie, Cell,
+} from 'recharts';
+
+const MOCK_KPIS: KPIsData = {
+  total: 30, emProducao: 18, setup: 5, regulagem: 3, aguardando: 4,
+  paradas: 4, inativas: 2, divergentes: 6, ultimaAtualizacao: null,
+};
+
+const MOCK_SNAPSHOTS: Snapshot[] = [
+  { id: '1', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 01', produtoNome: 'Frasco reto 12', cicloAtual: 50, cavidadeReal: 24, velocidade: 120, status: 'EM_PRODUCAO', observacao: null, divergente: false, produto: { id: '', codigo: '', descricao: 'Frasco reto 12', ciclopadrao: 50, cavidadepadrao: 24, ativo: true, createdAt: '' } },
+  { id: '2', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 02', produtoNome: 'Tampa Kelly', cicloAtual: 20, cavidadeReal: 16, velocidade: 110, status: 'SETUP', observacao: null, divergente: false, produto: { id: '', codigo: '', descricao: 'Tampa Kelly', ciclopadrao: 20, cavidadepadrao: 16, ativo: true, createdAt: '' } },
+  { id: '3', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 03', produtoNome: 'Haste 48 mm', cicloAtual: 30, cavidadeReal: 32, velocidade: 95, status: 'REGULAGEM', observacao: null, divergente: true, produto: { id: '', codigo: '', descricao: 'Haste 48 mm', ciclopadrao: 30, cavidadepadrao: 28, ativo: true, createdAt: '' } },
+];
+
+const MOCK_ALERTS = [
+  { id: '1', machine: 'MÁQ 04', title: 'Ciclo aumentado +5s acima do padrão', time: '14:30', severity: 'danger' as const },
+  { id: '2', machine: 'MÁQ 06', title: 'Novo produto (Novo OP)', time: '14:28', severity: 'info' as const },
+];
+
+const alertIconBg = {
+  danger: 'bg-red-500',
+  warning: 'bg-amber-400',
+  info: 'bg-blue-500',
+  purple: 'bg-purple-500',
+};
+
+const alertIcons = {
+  danger: TrendingUp,
+  warning: Clock,
+  info: AlertCircle,
+  purple: Gauge,
+};
+
+const trendData = [
+  { h: '00:00', t1: 52, t2: 50, t3: 48 },
+  { h: '08:00', t1: 48, t2: 51, t3: 47 },
+  { h: '16:00', t1: 49, t2: 48, t3: 51 },
+  { h: '24:00', t1: 51, t2: 50, t3: 48 },
+];
+
+function snapshotToCard(s: Snapshot) {
+  return {
+    name: s.maquina,
+    product: s.produtoNome || s.produto?.descricao || '—',
+    status: s.status,
+    cycleCurrent: s.cicloAtual,
+    cycleTarget: s.produto?.ciclopadrao ?? null,
+    cavityCurrent: s.cavidadeReal,
+    cavityTarget: s.produto?.cavidadepadrao ?? null,
+    velocity: s.velocidade,
+    divergent: s.divergente,
+    observation: s.observacao,
+  };
+}
+
+export default function CentralPage() {
+  useSocket();
+  const [showAll, setShowAll] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const { data: kpisData, isLoading: kpiLoading, error: kpiError } = useKPIs();
+  const { data: snapshotsData, isLoading: snapLoading, error: snapError } = useSnapshotsHoje();
+
+  const previewMode = Boolean(kpiError || snapError);
+  const kpis = (kpisData as KPIsData | undefined) ?? MOCK_KPIS;
+  const snapshots = (snapshotsData as Snapshot[] | undefined) ?? MOCK_SNAPSHOTS;
+  const machines = useMemo(() => snapshots.map(snapshotToCard), [snapshots]);
+  const visibleMachines = showAll ? machines : machines.slice(0, 10);
+  const total = kpis.total || machines.length || 1;
+
+  const pieData = [
+    { name: 'Em produção', value: kpis.emProducao, color: '#22c55e' },
+    { name: 'Setup/Ajustes', value: kpis.setup, color: '#f59e0b' },
+    { name: 'Regulagem', value: kpis.regulagem, color: '#a855f7' },
+    { name: 'Aguardando', value: kpis.aguardando, color: '#f97316' },
+    { name: 'Paradas', value: kpis.paradas, color: '#ef4444' },
+    { name: 'Inativas', value: kpis.inativas, color: '#94a3b8' },
+  ];
+
+  const pct = (v: number, t: number) => (t > 0 ? `${Math.round((v / t) * 100)}% do total` : '—');
+
+  const kpiCards = [
+    { label: 'Total de máquinas', value: kpis.total, meta: 'Monitoradas' },
+    { label: 'Em produção', value: kpis.emProducao, meta: pct(kpis.emProducao, total) },
+    { label: 'Setup / ajustes', value: kpis.setup, meta: pct(kpis.setup, total) },
+    { label: 'Regulagem', value: kpis.regulagem, meta: pct(kpis.regulagem, total) },
+    { label: 'Aguardando', value: kpis.aguardando, meta: pct(kpis.aguardando, total) },
+    { label: 'Paradas', value: kpis.paradas, meta: pct(kpis.paradas, total) },
+    { label: 'Inativas', value: kpis.inativas, meta: pct(kpis.inativas, total) },
+  ];
+
+  if (kpiLoading || snapLoading) {
+    return <CentralSkeleton />;
+  }
+
+  return (
+    <div className="space-y-3 sm:space-y-5">
+      {previewMode && (
+        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2">
+          Modo visualização — dados de exemplo. Faça login com o backend ativo para ver dados reais.
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
+        {kpiCards.map((k) => (
+          <div key={k.label} className="kpi-corporate !px-3 !py-3 sm:!px-5 sm:!py-4">
+            <p className="kpi-corporate__label text-[9px] sm:text-[10px]">{k.label}</p>
+            <p className="kpi-corporate__value !text-2xl sm:!text-3xl">{k.value}</p>
+            <p className="kpi-corporate__meta hidden sm:block">{k.meta}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-3 sm:gap-5 items-start">
+        <div className="card p-3 sm:p-5 space-y-3 sm:space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="text-base font-bold text-operis-dark">Status das Máquinas</h2>
+            <div className="flex items-center gap-2">
+              <div className="flex border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 ${viewMode === 'grid' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
+                >
+                  <LayoutGrid size={16} />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 ${viewMode === 'list' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
+                >
+                  <List size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {machines.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">Nenhum snapshot disponível para hoje.</p>
+          ) : (
+            <div className={viewMode === 'grid'
+              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3'
+              : 'space-y-2'}>
+              {visibleMachines.map((m) => (
+                <MachineCard key={m.name} {...m} />
+              ))}
+            </div>
+          )}
+
+          {machines.length > 10 && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="w-full flex items-center justify-center gap-2 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              {showAll ? 'Ver menos' : `Ver todas as máquinas (${machines.length})`}
+              <ChevronDown size={16} className={`transition-transform ${showAll ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </div>
+
+        <div className="card p-3 sm:p-5">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-base font-bold text-operis-dark">Alertas importantes</h2>
+            <Link href="/alertas" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Ver todos</Link>
+          </div>
+          <div className="space-y-1">
+            {MOCK_ALERTS.map((a) => {
+              const Ico = alertIcons[a.severity] ?? AlertCircle;
+              return (
+                <div key={a.id} className="alert-item-row">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${alertIconBg[a.severity]}`}>
+                    <Ico size={16} className="text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-operis-dark">{a.machine}</p>
+                    <p className="text-[11px] text-gray-500 leading-tight">{a.title}</p>
+                  </div>
+                  <span className="text-[11px] text-gray-400 whitespace-nowrap">{a.time}</span>
+                </div>
+              );
+            })}
+          </div>
+          <Link href="/alertas" className="mt-3 block w-full text-center text-xs font-semibold text-blue-600 hover:text-blue-700">
+            Ver todos os alertas
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+        <div className="card p-3 sm:p-5">
+          <h3 className="text-sm font-bold text-operis-dark mb-3">Evolução do ciclo médio</h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="h" tick={{ fontSize: 10 }} stroke="#ccc" />
+              <YAxis tick={{ fontSize: 10 }} stroke="#ccc" />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #eee' }} />
+              <Line type="monotone" dataKey="t1" stroke="#3b82f6" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="t2" stroke="#a855f7" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="t3" stroke="#22c55e" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="card p-3 sm:p-5">
+          <h3 className="text-sm font-bold text-operis-dark mb-3">Distribuição de status</h3>
+          <div className="relative flex items-center justify-center" style={{ height: 160 }}>
+            <ResponsiveContainer width="100%" height={160}>
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={72} dataKey="value" startAngle={90} endAngle={-270}>
+                  {pieData.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-2xl font-bold text-operis-dark">{total}</span>
+              <span className="text-[11px] text-gray-400">Máquinas</span>
+            </div>
+          </div>
+          <div className="space-y-1.5 mt-3">
+            {pieData.map((d) => (
+              <div key={d.name} className="flex items-center justify-between text-xs text-gray-600">
+                <span className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                  {d.name}
+                </span>
+                <span className="font-bold text-gray-700">
+                  {d.value} ({total > 0 ? Math.round((d.value / total) * 100) : 0}%)
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card p-3 sm:p-5 flex flex-col justify-center sm:col-span-2 lg:col-span-1">
+          <h3 className="text-sm font-bold text-operis-dark mb-2">Resumo operacional</h3>
+          <p className="text-xs text-gray-500">
+            {kpis.divergentes} máquinas com divergência detectada.
+            {kpis.ultimaAtualizacao
+              ? ` Última atualização: ${new Date(kpis.ultimaAtualizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`
+              : ''}
+          </p>
+          <Link href="/comparativos" className="mt-4 text-xs font-semibold text-blue-600 hover:text-blue-700">
+            Abrir comparativos →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}

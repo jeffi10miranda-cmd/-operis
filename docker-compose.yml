@@ -1,0 +1,78 @@
+version: '3.9'
+
+services:
+  # ── PostgreSQL ─────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: operis_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: operis_db
+      POSTGRES_USER: operis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U operis -d operis_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend Node.js ────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: operis_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      DATABASE_URL: postgresql://operis:${POSTGRES_PASSWORD}@postgres:5432/operis_db?schema=public
+      FRONTEND_URL: http://${VPS_IP}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_SERVICE_ACCOUNT_EMAIL}
+      GOOGLE_PRIVATE_KEY: ${GOOGLE_PRIVATE_KEY}
+      SHEET_ID_TURNO_1: ${SHEET_ID_TURNO_1}
+      SHEET_ID_TURNO_2: ${SHEET_ID_TURNO_2}
+      SHEET_ID_TURNO_3: ${SHEET_ID_TURNO_3}
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-1}
+      ALERT_CICLO_DESVIO_PERCENT: ${ALERT_CICLO_DESVIO_PERCENT:-10}
+      ALERT_SETUP_MAX_MINUTOS: ${ALERT_SETUP_MAX_MINUTOS:-60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/logs:/app/logs
+
+  # ── Frontend Next.js ───────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://${VPS_IP}
+        NEXT_PUBLIC_WS_URL: http://${VPS_IP}
+    container_name: operis_frontend
+    restart: unless-stopped
+    environment:
+      PORT: 3002
+    depends_on:
+      - backend
+
+  # ── Nginx Reverse Proxy ────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: operis_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  postgres_data:

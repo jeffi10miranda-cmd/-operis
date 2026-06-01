@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --operis-petroleum: #0c2d3e;
+    --operis-dark: #0F3B52;
+    --operis-accent: #1a5f7a;
+    --operis-ice: #f7f9fc;
+    --operis-surface: #ffffff;
+    --operis-border: #e2e8f0;
+    --operis-muted: #64748b;
+    --shadow: 0 1px 3px rgba(12, 45, 62, 0.06);
+    --shadow-md: 0 8px 24px rgba(12, 45, 62, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    background: var(--operis-ice);
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button, input, select { font: inherit; cursor: pointer; }
+}
+
+@layer components {
+  /* ── Utilitários base ── */
+  .operis-label {
+    @apply block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1;
+  }
+
+  .card {
+    @apply bg-white rounded-xl border border-slate-200/80;
+    box-shadow: var(--shadow);
+  }
+
+  .kpi-corporate {
+    @apply card px-5 py-4 flex flex-col gap-1 min-h-[88px] justify-center;
+  }
+
+  .kpi-corporate__label {
+    @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500;
+  }
+
+  .kpi-corporate__value {
+    @apply text-3xl font-light text-[var(--operis-petroleum)] tabular-nums leading-none;
+  }
+
+  .kpi-corporate__meta {
+    @apply text-[11px] text-slate-400 font-medium;
+  }
+
+  .input {
+    @apply w-full min-h-[40px] px-3 py-2 border border-gray-200 rounded-xl
+           bg-white text-sm text-gray-800 outline-none
+           focus:border-blue-400 focus:ring-2 focus:ring-blue-100
+           transition-colors;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           bg-operis-dark text-white text-sm font-semibold rounded-xl
+           hover:bg-operis-accent transition-colors;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           border border-gray-200 text-sm font-semibold rounded-xl
+           bg-white text-gray-700 hover:bg-gray-50 transition-colors;
+  }
+
+  /* ── Machine card ── */
+  .machine-card {
+    @apply card p-4;
+    min-height: 200px;
+  }
+
+  .machine-name {
+    @apply text-sm font-bold text-operis-dark;
+  }
+
+  .machine-product {
+    @apply text-xs text-gray-500 mt-0.5 truncate max-w-[140px];
+  }
+
+  /* ── Status pills ── */
+  .status-pill {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+           text-xs font-bold uppercase tracking-wide;
+  }
+
+  /* ── KPI card ── */
+  .kpi-card {
+    @apply card p-5 flex flex-col gap-3;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: linear-gradient(180deg, var(--operis-petroleum) 0%, #061018 100%);
+  }
+
+  .nav-item-active {
+    @apply bg-white/10 text-white border-l-2 border-sky-400;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
+           text-slate-300 transition-all;
+  }
+
+  .nav-item:hover {
+    @apply bg-white/10 text-white;
+  }
+
+  .nav-item.active {
+    @apply bg-white/15 text-white;
+  }
+
+  /* ── Alert item ── */
+  .alert-item-row {
+    @apply flex items-start gap-3 p-3 rounded-xl
+           hover:bg-gray-50 transition-colors;
+  }
+
+  /* ── TV ticker ── */
+  .tv-ticker-track {
+    display: flex;
+    width: max-content;
+    animation: tv-ticker 28s linear infinite;
+  }
+
+  .tv-ticker-track:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes tv-ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
