@@ -1,23 +1,6 @@
 version: '3.9'
 
 services:
-  # ── PostgreSQL ─────────────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    container_name: operis_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: operis_db
-      POSTGRES_USER: operis
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U operis -d operis_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # ── Backend Node.js ────────────────────────────
   backend:
     build:
@@ -28,7 +11,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3003
-      DATABASE_URL: postgresql://operis:${POSTGRES_PASSWORD}@postgres:5432/operis_db?schema=public
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
       FRONTEND_URL: http://${VPS_IP}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
@@ -40,9 +24,6 @@ services:
       SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-1}
       ALERT_CICLO_DESVIO_PERCENT: ${ALERT_CICLO_DESVIO_PERCENT:-10}
       ALERT_SETUP_MAX_MINUTOS: ${ALERT_SETUP_MAX_MINUTOS:-60}
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - ./backend/logs:/app/logs
 
@@ -73,6 +54,3 @@ services:
     depends_on:
       - frontend
       - backend
-
-volumes:
-  postgres_data:
