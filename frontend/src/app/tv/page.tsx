@@ -168,9 +168,8 @@ const FALLBACK_LIGHT = { label:'', bg:'bg-slate-100 border-slate-300 text-slate-
 
 // ── TV Machine Card ───────────────────────────
 function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }) {
-  const map   = theme === 'dark' ? STATUS_DARK : STATUS_LIGHT;
-  const fall  = theme === 'dark' ? FALLBACK_DARK : FALLBACK_LIGHT;
-  const cfg   = map[snapshot.status] ?? { ...fall, label: snapshot.status };
+  // Cards sempre escuros independente do tema da página
+  const cfg   = STATUS_DARK[snapshot.status] ?? { ...FALLBACK_DARK, label: snapshot.status };
   const Icon  = cfg.icon;
 
   const cycleOff =
@@ -183,10 +182,11 @@ function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }
     snapshot.produto?.cavidadepadrao != null &&
     snapshot.cavidadeReal < snapshot.produto.cavidadepadrao;
 
-  const numBg   = theme === 'dark' ? 'bg-black/20' : 'bg-black/5';
-  const numText = theme === 'dark' ? 'text-slate-300' : 'text-gray-700';
-  const prodTxt = theme === 'dark' ? 'text-slate-300' : 'text-gray-600';
-  const nameTxt = theme === 'dark' ? 'text-white' : 'text-gray-900';
+  const numBg   = 'bg-black/20';
+  const numText = 'text-slate-300';
+  const prodTxt = 'text-slate-300';
+  const nameTxt = 'text-white';
+  void theme; // tema controla apenas o fundo/header da página
 
   return (
     <div className={`rounded-2xl border p-4 flex flex-col gap-2.5 ${cfg.bg} ${snapshot.divergente ? 'ring-2 ring-amber-400/60' : ''}`}>
