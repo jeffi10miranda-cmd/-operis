@@ -39,6 +39,23 @@ snapshotsRouter.get('/hoje', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /api/snapshots/ultimo
+// Retorna o snapshot mais recente de cada maquina (independente de data/turno)
+// Usado para pre-popular ronda manual quando nao ha sync do Sheets
+snapshotsRouter.get('/ultimo', async (_req, res, next) => {
+  try {
+    const snaps = await prisma.snapshotTurno.findMany({
+      include: { produto: true },
+      orderBy: { capturadoEm: 'desc' },
+    });
+    const maquinas = new Map<string, typeof snaps[0]>();
+    for (const s of snaps) {
+      if (!maquinas.has(s.maquina)) maquinas.set(s.maquina, s);
+    }
+    res.json([...maquinas.values()].sort((a, b) => a.maquina.localeCompare(b.maquina)));
+  } catch (e) { next(e); }
+});
+
 // GET /api/snapshots/kpis
 // KPIs da Central (contagem por status)
 snapshotsRouter.get('/kpis', async (_req, res, next) => {

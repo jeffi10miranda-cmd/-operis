@@ -73,6 +73,10 @@ export function useSnapshotsHoje(turno?: string) {
   return useSWR(hasApiAccess() ? url : null, fetcher, { ...SILENT, refreshInterval: 30000 });
 }
 
+export function useSnapshotsUltimo() {
+  return useSWR(hasApiAccess() ? '/snapshots/ultimo' : null, fetcher, SILENT);
+}
+
 export function useAlertas(params?: { lido?: boolean; page?: number; severidade?: string; limit?: number }) {
   const query = new URLSearchParams();
   if (params?.lido !== undefined) query.set('lido', String(params.lido));

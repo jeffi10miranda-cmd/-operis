@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useSnapshotsHoje, useProdutos, api } from '@/lib/api';
+import { useSnapshotsHoje, useSnapshotsUltimo, useProdutos, api } from '@/lib/api';
 import { RondaCard } from '@/components/ronda-card';
 import {
   Calendar, Search, Plus, Edit2, PowerOff, Trash2,
@@ -764,44 +764,57 @@ function TabApontar() {
   const [obsAberta, setObsAberta]     = useState<string | null>(null);
   const [buscaMaq, setBuscaMaq]       = useState('');
   const [filtroMaq, setFiltroMaq]     = useState<FiltroMaq>('todas');
+  const [horaInicio, setHoraInicio]   = useState<string | null>(null);
+  const [horaFim, setHoraFim]         = useState<string | null>(null);
 
   // Carrega snapshots reais do turno selecionado
   const { data: snapshotsRaw, isLoading: loadingSnaps } = useSnapshotsHoje(turno);
+  const { data: ultimosRaw } = useSnapshotsUltimo();
   const { data: produtosRaw } = useProdutos();
-  const snapshots = (snapshotsRaw as any[]) ?? [];
+  const snapshots    = (snapshotsRaw as any[]) ?? [];
+  const ultimoSnaps  = (ultimosRaw  as any[]) ?? [];
   const produtosReais = (produtosRaw as any[]) ?? MOCK_PRODUTOS;
 
-  // Retorna snapshot real ou snapshot vazio para apontamento manual
+  // Hora de início: registra quando o operador começa a preencher
+  function registrarInicio() {
+    if (!horaInicio) setHoraInicio(new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }));
+  }
+
+  // Retorna snapshot do turno atual, do último conhecido, ou vazio
   function getSnapOrDefault(maq: string) {
-    return snapshots.find((s: any) => s.maquina === maq) ?? {
-      maquina: maq, status: 'INATIVA',
-      op: null, qtdOP: null, produtoNome: null, produto: null,
-      cicloAtual: null, cavidadeReal: null, qtdAtual: null,
-      observacao: null, divergente: false,
+    return snapshots.find((s: any) => s.maquina === maq)
+      ?? ultimoSnaps.find((s: any) => s.maquina === maq)
+      ?? { maquina: maq, status: 'INATIVA', op: null, qtdOP: null, produtoNome: null, produto: null, cicloAtual: null, cavidadeReal: null, qtdAtual: null, observacao: null, divergente: false };
+  }
+
+  // Converte snapshot em apontamento
+  function snapToApt(s: any): Apontamento {
+    return {
+      produto:      s.produtoNome || s.produto?.descricao || '',
+      op:           s.op || '',
+      qtdOP:        s.qtdOP != null ? String(s.qtdOP) : '',
+      qtdAcumulada: s.qtdAtual != null ? String(s.qtdAtual) : '',
+      cicloReal:    s.cicloAtual != null ? String(s.cicloAtual) : '',
+      cavidadeReal: s.cavidadeReal != null ? String(s.cavidadeReal) : '',
+      status:       s.status || '',
+      observacao:   s.observacao || '',
     };
   }
 
-  // Pre-popula o formulário com dados do snapshot quando disponível
+  // Pre-popula: turno atual tem prioridade, depois último snapshot do turno anterior
   useEffect(() => {
+    const fonte = snapshots.length > 0 ? snapshots : ultimoSnaps;
+    if (!fonte.length) return;
     setApts(prev => {
       const novoApts: Record<string, Apontamento> = { ...prev };
-      for (const s of snapshots) {
+      for (const s of fonte) {
         if (!novoApts[s.maquina] || !isPreenchido(novoApts[s.maquina])) {
-          novoApts[s.maquina] = {
-            produto:      s.produtoNome || s.produto?.descricao || '',
-            op:           s.op || '',
-            qtdOP:        s.qtdOP != null ? String(s.qtdOP) : '',
-            qtdAcumulada: s.qtdAtual != null ? String(s.qtdAtual) : '',
-            cicloReal:    s.cicloAtual != null ? String(s.cicloAtual) : '',
-            cavidadeReal: s.cavidadeReal != null ? String(s.cavidadeReal) : '',
-            status:       s.status || '',
-            observacao:   s.observacao || '',
-          };
+          novoApts[s.maquina] = snapToApt(s);
         }
       }
       return novoApts;
     });
-  }, [snapshotsRaw, turno]);
+  }, [snapshotsRaw, ultimosRaw, turno]);
 
   // Usa snapshots da API ou lista estática como fallback para apontamento manual
   const maquinas = useMemo(() => {
@@ -814,6 +827,7 @@ function TabApontar() {
   }, [snapshots]);
 
   function setField(maq: string, field: keyof Apontamento, value: string) {
+    registrarInicio();
     setApts(prev => ({ ...prev, [maq]: { ...prev[maq], [field]: value } }));
   }
 
@@ -836,6 +850,7 @@ function TabApontar() {
 
   async function salvarRonda() {
     setSalvando(true);
+    const fim = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
     try {
       await Promise.allSettled(
         maquinas.map((maq: string) => {
@@ -848,6 +863,7 @@ function TabApontar() {
           });
         })
       );
+      setHoraFim(fim);
       setFinalizado(true);
     } catch { /* silent */ }
     finally { setSalvando(false); }
@@ -856,6 +872,8 @@ function TabApontar() {
   function limparTudo() {
     setApts({});
     setFinalizado(false);
+    setHoraInicio(null);
+    setHoraFim(null);
   }
 
   if (finalizado) {
@@ -916,7 +934,19 @@ function TabApontar() {
           <div className="flex-1 min-w-0 w-full sm:w-auto">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs sm:text-sm font-semibold text-gray-700">{preenchidos} / {maquinas.length} máquinas</span>
-              <span className="text-sm font-bold text-operis-dark">{progPct}%</span>
+              <div className="flex items-center gap-3">
+                {horaInicio && (
+                  <span className="text-[10px] text-gray-400">
+                    Início: <span className="font-semibold text-gray-600">{horaInicio}</span>
+                  </span>
+                )}
+                {horaFim && (
+                  <span className="text-[10px] text-gray-400">
+                    Fim: <span className="font-semibold text-green-600">{horaFim}</span>
+                  </span>
+                )}
+                <span className="text-sm font-bold text-operis-dark">{progPct}%</span>
+              </div>
             </div>
             <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
               <div
