@@ -140,19 +140,19 @@ export async function lerPlanilha(
 
     return dataRows
       .filter(row => {
-        // Ignora linhas sem número de máquina (col A) e sem status (col N)
+        // Maq(0) e Status(9) precisam estar preenchidos
         const maq    = row[0]?.toString().trim();
-        const status = row[13]?.toString().trim();
+        const status = row[9]?.toString().trim();
         return maq && status;
       })
       .map((row): SheetRow => ({
-        maquina:      normalizeStr(row[0]),           // col A = # (nº máquina)
-        produto:      normalizeStr(row[3] || row[2]), // col D = Descrição, fallback col C = Op
-        cicloAtual:   parseNum(row[8]),               // col I = Ciclo
-        cavidadeReal: parseNum(row[11]),              // col L = Cav
-        velocidade:   parseNum(row[10]),              // col K = C Real
-        status:       normalizeStr(row[13] || 'Inativa'), // col N = Status
-        observacao:   '',
+        maquina:      normalizeStr(row[0]),             // 0 = Maq
+        produto:      normalizeStr(row[2] || row[1]),   // 2 = Descrição, fallback 1 = Op
+        cicloAtual:   parseNum(row[5]),                 // 5 = Ciclo
+        cavidadeReal: parseNum(row[7]),                 // 7 = Cav
+        velocidade:   parseNum(row[6]),                 // 6 = C Real
+        status:       normalizeStr(row[9] || 'Inativa'), // 9 = Status
+        observacao:   normalizeStr(row[10] || ''),      // 10 = Ficha Técnica
       }));
   } catch (error) {
     logger.error(`Erro ao ler planilha ${spreadsheetId} aba "${nomeAba}":`, error);
