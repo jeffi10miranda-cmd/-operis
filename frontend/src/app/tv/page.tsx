@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Play, Settings, Gauge, AlertCircle, Clock, StopCircle, Power,
   Droplets, RotateCcw, Wrench, Minimize2, TrendingUp, TrendingDown,
-  LayoutGrid, BarChart3, Sun, Moon, ChevronLeft, ChevronRight,
+  LayoutGrid, BarChart3, Sun, Moon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -460,6 +460,7 @@ export default function TvPage() {
   const [view,    setView]    = useState<TvView>('maquinas');
   const [theme,   setTheme]   = useState<Theme>('dark');
   const [kpiOpen, setKpiOpen] = useState(true);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -519,6 +520,18 @@ export default function TvPage() {
     <div className="fixed inset-0 flex flex-col overflow-hidden select-none" style={tk.page}>
 
       {/* ── Header ── */}
+      {headerCollapsed ? (
+        /* Faixa mínima quando colapsado */
+        <div
+          className={`flex-shrink-0 flex items-center justify-between px-4 py-1 border-b ${tk.headerCls} cursor-pointer`}
+          style={tk.headerStyle}
+          onClick={() => setHeaderCollapsed(false)}
+          title="Expandir cabeçalho"
+        >
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${tk.textMuted}`}>OPERIS</span>
+          <ChevronDown size={14} className={tk.textMuted} />
+        </div>
+      ) : (
       <header className={`flex-shrink-0 flex items-center gap-3 px-6 py-3 border-b ${tk.headerCls}`} style={tk.headerStyle}>
         {/* Logo */}
         <div className="flex items-center gap-3 flex-shrink-0">
@@ -581,7 +594,16 @@ export default function TvPage() {
 
         <div className={`h-6 w-px flex-shrink-0 ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`} />
 
-        {/* Sair da TV — no header, some com mouse parado */}
+        {/* Colapsar header */}
+        <button
+          onClick={() => setHeaderCollapsed(true)}
+          title="Ocultar cabeçalho"
+          className={`flex-shrink-0 p-2 rounded-xl border transition-colors ${tk.exitBtn}`}
+        >
+          <ChevronUp size={14} />
+        </button>
+
+        {/* Sair da TV */}
         <button
           onClick={handleExit}
           className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold border transition-all ${tk.exitBtn} ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
@@ -590,6 +612,7 @@ export default function TvPage() {
           <Minimize2 size={14} /> Sair da TV
         </button>
       </header>
+      )}{/* fim do else headerCollapsed */}
 
       {/* ── Conteúdo + Sidebar KPI ── */}
       <main className="flex-1 overflow-hidden flex min-h-0">
