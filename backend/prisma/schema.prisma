@@ -110,7 +110,9 @@ model SnapshotTurno {
   velocidade      Float?
   status          StatusOperacional
   observacao      String?
+  qtdAtual        Int?
   divergente      Boolean           @default(false)
+  manualOverride  Boolean           @default(false)
   capturadoEm     DateTime          @default(now())
 
   produto Produto? @relation(fields: [produtoId], references: [id])

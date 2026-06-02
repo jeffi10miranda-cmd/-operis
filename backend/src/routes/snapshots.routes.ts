@@ -96,3 +96,32 @@ snapshotsRouter.get('/maquina/:id', async (req, res, next) => {
     res.json(snapshots);
   } catch (e) { next(e); }
 });
+
+// PATCH /api/snapshots/maquina/:maquina — override manual de status/qtd
+snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
+  try {
+    const { status, qtdAtual, liberarSync } = req.body;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const snapshot = await prisma.snapshotTurno.findFirst({
+      where: { maquina: req.params.maquina, data: hoje },
+      orderBy: { capturadoEm: 'desc' },
+    });
+
+    if (!snapshot) {
+      return res.status(404).json({ error: 'Máquina não encontrada hoje' });
+    }
+
+    const updated = await prisma.snapshotTurno.update({
+      where: { id: snapshot.id },
+      data: {
+        ...(status !== undefined  ? { status: status as StatusOperacional } : {}),
+        ...(qtdAtual !== undefined ? { qtdAtual: Number(qtdAtual) } : {}),
+        manualOverride: liberarSync ? false : true,
+      },
+    });
+
+    res.json(updated);
+  } catch (e) { next(e); }
+});

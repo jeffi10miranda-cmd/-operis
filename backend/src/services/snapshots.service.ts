@@ -58,6 +58,13 @@ async function processarMaquina(
     ? detectarDivergencia(row, produto)
     : false;
 
+  // Não sobrescreve máquinas com override manual ativo
+  const existing = await prisma.snapshotTurno.findUnique({
+    where: { data_turno_maquina: { data, turno, maquina: row.maquina } },
+    select: { manualOverride: true },
+  });
+  if (existing?.manualOverride) return;
+
   // Upsert do snapshot
   const snapshot = await prisma.snapshotTurno.upsert({
     where: {
@@ -69,6 +76,7 @@ async function processarMaquina(
       maquina: row.maquina,
       produtoId: produto?.id || null,
       produtoNome: row.produto || null,
+      qtdAtual: row.qtdAtual,
       cicloAtual: row.cicloAtual,
       cavidadeReal: row.cavidadeReal,
       velocidade: row.velocidade,
@@ -79,6 +87,7 @@ async function processarMaquina(
     update: {
       produtoId: produto?.id || null,
       produtoNome: row.produto || null,
+      qtdAtual: row.qtdAtual,
       cicloAtual: row.cicloAtual,
       cavidadeReal: row.cavidadeReal,
       velocidade: row.velocidade,

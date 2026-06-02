@@ -10,6 +10,7 @@ import { logger } from '../config/logger';
 export interface SheetRow {
   maquina:      string;
   produto:      string;
+  qtdAtual:     number | null;
   cicloAtual:   number | null;
   cavidadeReal: number | null;
   velocidade:   number | null;
@@ -154,13 +155,14 @@ export async function lerPlanilha(
         return maq && status;
       })
       .map((row): SheetRow => ({
-        maquina:      normalizeStr(row[0]),             // 0 = Maq
-        produto:      normalizeStr(row[2] || row[1]),   // 2 = Descrição, fallback 1 = Op
-        cicloAtual:   parseNum(row[5]),                 // 5 = Ciclo
-        cavidadeReal: parseNum(row[7]),                 // 7 = Cav
-        velocidade:   parseNum(row[6]),                 // 6 = C Real
+        maquina:      normalizeStr(row[0]),              // 0 = Maq
+        produto:      normalizeStr(row[2] || row[1]),    // 2 = Descrição, fallback 1 = Op
+        qtdAtual:     parseNum(row[4]),                  // 4 = Qtd Atual
+        cicloAtual:   parseNum(row[5]),                  // 5 = Ciclo
+        cavidadeReal: parseNum(row[7]),                  // 7 = Cav
+        velocidade:   parseNum(row[6]),                  // 6 = C Real
         status:       normalizeStr(row[9] || 'Inativa'), // 9 = Status
-        observacao:   normalizeStr(row[10] || ''),      // 10 = Ficha Técnica
+        observacao:   normalizeStr(row[10] || ''),       // 10 = Ficha Técnica
       }));
   } catch (error) {
     logger.error(`Erro ao ler planilha ${spreadsheetId} aba "${nomeAba}":`, error);

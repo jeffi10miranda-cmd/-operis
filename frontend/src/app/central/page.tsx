@@ -54,6 +54,7 @@ const trendData = [
 
 function snapshotToCard(s: Snapshot) {
   return {
+    maquina: s.maquina,
     name: s.maquina,
     product: s.produtoNome || s.produto?.descricao || '—',
     status: s.status,
@@ -61,9 +62,11 @@ function snapshotToCard(s: Snapshot) {
     cycleTarget: s.produto?.ciclopadrao ?? null,
     cavityCurrent: s.cavidadeReal,
     cavityTarget: s.produto?.cavidadepadrao ?? null,
+    qtdAtual: (s as any).qtdAtual ?? null,
     velocity: s.velocidade,
     divergent: s.divergente,
     observation: s.observacao,
+    manualOverride: (s as any).manualOverride ?? false,
   };
 }
 
@@ -73,7 +76,7 @@ export default function CentralPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const { data: kpisData, isLoading: kpiLoading, error: kpiError } = useKPIs();
-  const { data: snapshotsData, isLoading: snapLoading, error: snapError } = useSnapshotsHoje();
+  const { data: snapshotsData, isLoading: snapLoading, error: snapError, mutate: reloadSnaps } = useSnapshotsHoje();
 
   const previewMode = Boolean(kpiError || snapError);
   const kpis = (kpisData as KPIsData | undefined) ?? MOCK_KPIS;
@@ -154,7 +157,7 @@ export default function CentralPage() {
               ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3'
               : 'space-y-2'}>
               {visibleMachines.map((m) => (
-                <MachineCard key={m.name} {...m} />
+                <MachineCard key={m.name} {...m} onUpdated={() => reloadSnaps()} />
               ))}
             </div>
           )}
