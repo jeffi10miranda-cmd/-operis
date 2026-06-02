@@ -70,20 +70,74 @@ function snapshotToCard(s: Snapshot) {
   };
 }
 
+type TurnoView = 'TODOS' | 'PRIMEIRO' | 'SEGUNDO' | 'TERCEIRO';
+
+function TurnoSection({ machines, viewMode, onUpdated }: {
+  machines: ReturnType<typeof snapshotToCard>[];
+  viewMode: 'grid' | 'list';
+  onUpdated: () => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? machines : machines.slice(0, 10);
+
+  return (
+    <>
+      {machines.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">Nenhum dado disponível.</p>
+      ) : (
+        <div className={viewMode === 'grid'
+          ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3'
+          : 'space-y-2'}>
+          {visible.map((m) => (
+            <MachineCard key={`${m.maquina}`} {...m} onUpdated={onUpdated} />
+          ))}
+        </div>
+      )}
+      {machines.length > 10 && (
+        <button
+          onClick={() => setShowAll(v => !v)}
+          className="w-full flex items-center justify-center gap-2 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 mt-2"
+        >
+          {showAll ? 'Ver menos' : `Ver todas (${machines.length})`}
+          <ChevronDown size={16} className={`transition-transform ${showAll ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+    </>
+  );
+}
+
+const TURNO_CONFIG = [
+  { id: 'PRIMEIRO' as const, label: '1º Turno', horario: '06:00–14:00', cor: 'bg-blue-500' },
+  { id: 'SEGUNDO'  as const, label: '2º Turno', horario: '14:00–22:00', cor: 'bg-purple-500' },
+  { id: 'TERCEIRO' as const, label: '3º Turno', horario: '22:00–06:00', cor: 'bg-slate-600' },
+];
+
 export default function CentralPage() {
   useSocket();
-  const [showAll, setShowAll] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [turnoView, setTurnoView]   = useState<TurnoView>('TODOS');
+  const [viewMode, setViewMode]     = useState<'grid' | 'list'>('grid');
 
   const { data: kpisData, isLoading: kpiLoading, error: kpiError } = useKPIs();
-  const { data: snapshotsData, isLoading: snapLoading, error: snapError, mutate: reloadSnaps } = useSnapshotsHoje();
+  const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO');
+  const { data: t2Raw, mutate: reloadT2 } = useSnapshotsHoje('SEGUNDO');
+  const { data: t3Raw, mutate: reloadT3 } = useSnapshotsHoje('TERCEIRO');
 
-  const previewMode = Boolean(kpiError || snapError);
+  function reloadAll() { reloadT1(); reloadT2(); reloadT3(); }
+
+  const t1 = useMemo(() => ((t1Raw as Snapshot[] | undefined) ?? []).map(snapshotToCard), [t1Raw]);
+  const t2 = useMemo(() => ((t2Raw as Snapshot[] | undefined) ?? []).map(snapshotToCard), [t2Raw]);
+  const t3 = useMemo(() => ((t3Raw as Snapshot[] | undefined) ?? []).map(snapshotToCard), [t3Raw]);
+
+  const turnoDataMap = { PRIMEIRO: t1, SEGUNDO: t2, TERCEIRO: t3 };
+  const turnoReloadMap = { PRIMEIRO: reloadT1, SEGUNDO: reloadT2, TERCEIRO: reloadT3 };
+
+  const snapshots = turnoView === 'TODOS'
+    ? [...t1, ...t2, ...t3]
+    : turnoDataMap[turnoView] ?? [];
+
+  const previewMode = Boolean(kpiError);
   const kpis = (kpisData as KPIsData | undefined) ?? MOCK_KPIS;
-  const snapshots = (snapshotsData as Snapshot[] | undefined) ?? MOCK_SNAPSHOTS;
-  const machines = useMemo(() => snapshots.map(snapshotToCard), [snapshots]);
-  const visibleMachines = showAll ? machines : machines.slice(0, 10);
-  const total = kpis.total || machines.length || 1;
+  const total = kpis.total || snapshots.length || 1;
 
   const pieData = [
     { name: 'Em produção', value: kpis.emProducao, color: '#22c55e' },
@@ -106,9 +160,7 @@ export default function CentralPage() {
     { label: 'Inativas', value: kpis.inativas, meta: pct(kpis.inativas, total) },
   ];
 
-  if (kpiLoading || snapLoading) {
-    return <CentralSkeleton />;
-  }
+  if (kpiLoading) return <CentralSkeleton />;
 
   return (
     <div className="space-y-3 sm:space-y-5">
@@ -130,46 +182,78 @@ export default function CentralPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-3 sm:gap-5 items-start">
         <div className="card p-3 sm:p-5 space-y-3 sm:space-y-4">
+          {/* Header com tabs de turno e toggle de view */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-base font-bold text-operis-dark">Status das Máquinas</h2>
-            <div className="flex items-center gap-2">
-              <div className="flex border border-gray-200 rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Tabs de turno */}
+              <div className="flex border border-gray-200 rounded-xl overflow-hidden text-xs font-semibold">
                 <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 ${viewMode === 'grid' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
+                  onClick={() => setTurnoView('TODOS')}
+                  className={`px-3 py-1.5 transition-colors ${turnoView === 'TODOS' ? 'bg-operis-dark text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                 >
+                  Todos
+                </button>
+                {TURNO_CONFIG.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTurnoView(t.id)}
+                    className={`px-3 py-1.5 transition-colors border-l border-gray-200 ${turnoView === t.id ? 'bg-operis-dark text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              {/* Toggle grid/list */}
+              <div className="flex border border-gray-200 rounded-xl overflow-hidden">
+                <button onClick={() => setViewMode('grid')} className={`p-2 ${viewMode === 'grid' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400'}`}>
                   <LayoutGrid size={16} />
                 </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 ${viewMode === 'list' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
-                >
+                <button onClick={() => setViewMode('list')} className={`p-2 ${viewMode === 'list' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400'}`}>
                   <List size={16} />
                 </button>
               </div>
             </div>
           </div>
 
-          {machines.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Nenhum snapshot disponível para hoje.</p>
-          ) : (
-            <div className={viewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3'
-              : 'space-y-2'}>
-              {visibleMachines.map((m) => (
-                <MachineCard key={m.name} {...m} onUpdated={() => reloadSnaps()} />
-              ))}
-            </div>
+          {/* Visão: turno específico */}
+          {turnoView !== 'TODOS' && (
+            <TurnoSection
+              machines={turnoDataMap[turnoView] ?? []}
+              viewMode={viewMode}
+              onUpdated={() => turnoReloadMap[turnoView]?.()}
+            />
           )}
 
-          {machines.length > 10 && (
-            <button
-              onClick={() => setShowAll(!showAll)}
-              className="w-full flex items-center justify-center gap-2 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              {showAll ? 'Ver menos' : `Ver todas as máquinas (${machines.length})`}
-              <ChevronDown size={16} className={`transition-transform ${showAll ? 'rotate-180' : ''}`} />
-            </button>
+          {/* Visão: todos os turnos separados */}
+          {turnoView === 'TODOS' && (
+            <div className="space-y-6">
+              {TURNO_CONFIG.map(tc => {
+                const maquinas = turnoDataMap[tc.id] ?? [];
+                return (
+                  <div key={tc.id}>
+                    <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl`} style={{ background: 'var(--operis-surface)' }}>
+                      <span className={`w-3 h-3 rounded-full ${tc.cor}`} />
+                      <span className="text-sm font-bold text-operis-dark">{tc.label}</span>
+                      <span className="text-xs text-gray-400">{tc.horario}</span>
+                      <span className="ml-auto text-xs font-semibold text-gray-500">{maquinas.length} máquinas</span>
+                      <span className="text-xs text-green-600 font-semibold">
+                        {maquinas.filter(m => m.status === 'EM_PRODUCAO').length} em produção
+                      </span>
+                    </div>
+                    {maquinas.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-4">Sem dados para este turno.</p>
+                    ) : (
+                      <TurnoSection
+                        machines={maquinas}
+                        viewMode={viewMode}
+                        onUpdated={() => turnoReloadMap[tc.id]?.()}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
