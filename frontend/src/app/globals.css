@@ -145,16 +145,11 @@
   100% { transform: translateX(-50%); }
 }
 
-@keyframes tv-scroll-up {
-  from { transform: translateY(0); }
-  to   { transform: translateY(-50%); }
+/* TV — scroll vertical sem barra */
+.tv-scroll-wrap {
+  overflow-y: auto;
+  scrollbar-width: none;
 }
-
-.tv-auto-scroll {
-  animation: tv-scroll-up var(--tv-scroll-duration, 40s) linear infinite;
-  will-change: transform;
-}
-
-.tv-auto-scroll:hover {
-  animation-play-state: paused;
+.tv-scroll-wrap::-webkit-scrollbar {
+  display: none;
 }

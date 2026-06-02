@@ -394,37 +394,44 @@ function TvScrollGrid({ snapshots, theme }: { snapshots: Snapshot[]; theme: Them
     [snapshots],
   );
 
-  const gridRef  = useRef<HTMLDivElement>(null);
+  const wrapRef  = useRef<HTMLDivElement>(null);
   const posRef   = useRef(0);
   const pauseRef = useRef(false);
   const rafRef   = useRef<number>(0);
 
   useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
+    posRef.current = 0;
+    cancelAnimationFrame(rafRef.current);
+
+    const el = wrapRef.current;
+    if (!el || sorted.length === 0) return;
 
     function tick() {
-      if (!pauseRef.current && el) {
-        posRef.current += SCROLL_SPEED;
+      if (el && !pauseRef.current) {
         const half = el.scrollHeight / 2;
-        if (posRef.current >= half) posRef.current = 0;
-        el.style.transform = `translateY(-${posRef.current}px)`;
+        if (half > 0) {
+          posRef.current = (posRef.current + SCROLL_SPEED) % half;
+          el.scrollTop = posRef.current;
+        }
       }
       rafRef.current = requestAnimationFrame(tick);
     }
 
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    // Aguarda o DOM pintar antes de medir scrollHeight
+    const t = setTimeout(() => { rafRef.current = requestAnimationFrame(tick); }, 100);
+    return () => { clearTimeout(t); cancelAnimationFrame(rafRef.current); };
   }, [sorted]);
 
   return (
-    <div className="overflow-hidden h-full w-full">
+    <div
+      ref={wrapRef}
+      className="tv-scroll-wrap h-full w-full"
+      onMouseEnter={() => { pauseRef.current = true;  }}
+      onMouseLeave={() => { pauseRef.current = false; }}
+    >
       <div
-        ref={gridRef}
         className="grid gap-3"
         style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
-        onMouseEnter={() => { pauseRef.current = true;  }}
-        onMouseLeave={() => { pauseRef.current = false; }}
       >
         {[...sorted, ...sorted].map((s, i) => (
           <TvMachineCard key={`${s.id}-${i}`} snapshot={s} theme={theme} />
