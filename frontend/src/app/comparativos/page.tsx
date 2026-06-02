@@ -253,22 +253,17 @@ export default function ComparativosPage() {
               </div>
 
               {/* Table head */}
-              <div className="grid grid-cols-[1fr_1fr_0.8fr_0.7fr_0.7fr_0.8fr_1fr_0.9fr_0.9fr_1fr] gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100 text-[9px] text-gray-400 uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_1fr_0.8fr_0.7fr_0.7fr_0.8fr_1fr_0.9fr_0.9fr_1fr] gap-2 px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                 <span>Máquina</span>
-                <span>Produto atual</span>
-                <span className="col-span-2 text-center">Ciclo médio</span>
-                <span className="col-span-2 text-center">Cavidade real</span>
-                <span className="col-span-2 text-center">Produção (un)</span>
-                <span></span>
-                <span>Status</span>
-              </div>
-              {/* Sub-head */}
-              <div className="grid grid-cols-[1fr_1fr_0.8fr_0.7fr_0.7fr_0.8fr_1fr_0.9fr_0.9fr_1fr] gap-2 px-5 py-1.5 bg-gray-50/50 border-b border-gray-100 text-[9px] text-gray-400">
-                <span/><span/>
-                <span>Período anterior</span><span>Período atual</span>
-                <span>Anterior</span><span>Atual</span>
-                <span>Anterior</span><span>Atual</span>
-                <span>Variação</span><span/>
+                <span>Produto</span>
+                <span>Ciclo ant.</span>
+                <span>Ciclo at.</span>
+                <span className="text-center">Cav. ant.</span>
+                <span className="text-center">Cav. at.</span>
+                <span className="text-right">Prod. ant.</span>
+                <span className="text-right">Prod. at.</span>
+                <span className="text-right">Variação</span>
+                <span className="text-center">Status</span>
               </div>
 
               {/* Rows */}
