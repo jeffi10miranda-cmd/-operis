@@ -386,22 +386,45 @@ function statusPriority(status: string): number {
 // ── Grid com auto-scroll vertical ────────────
 const COLS = 6;
 
+const SCROLL_SPEED = 0.4; // px por frame (~24px/s a 60fps)
+
 function TvScrollGrid({ snapshots, theme }: { snapshots: Snapshot[]; theme: Theme }) {
-  const sorted   = useMemo(
+  const sorted = useMemo(
     () => [...snapshots].sort((a, b) => statusPriority(a.status) - statusPriority(b.status)),
     [snapshots],
   );
-  const rows     = Math.max(1, Math.ceil(sorted.length / COLS));
-  const duration = `${Math.max(20, rows * 8)}s`;
+
+  const gridRef  = useRef<HTMLDivElement>(null);
+  const posRef   = useRef(0);
+  const pauseRef = useRef(false);
+  const rafRef   = useRef<number>(0);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+
+    function tick() {
+      if (!pauseRef.current && el) {
+        posRef.current += SCROLL_SPEED;
+        const half = el.scrollHeight / 2;
+        if (posRef.current >= half) posRef.current = 0;
+        el.style.transform = `translateY(-${posRef.current}px)`;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [sorted]);
 
   return (
     <div className="overflow-hidden h-full w-full">
       <div
-        className="tv-auto-scroll grid gap-3"
-        style={{
-          gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
-          ['--tv-scroll-duration' as string]: duration,
-        }}
+        ref={gridRef}
+        className="grid gap-3"
+        style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
+        onMouseEnter={() => { pauseRef.current = true;  }}
+        onMouseLeave={() => { pauseRef.current = false; }}
       >
         {[...sorted, ...sorted].map((s, i) => (
           <TvMachineCard key={`${s.id}-${i}`} snapshot={s} theme={theme} />
