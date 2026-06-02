@@ -26,8 +26,21 @@ const SEV_CONFIG = {
   INFO:    { label: 'Informativo', bg: 'bg-slate-50',  border: 'border-l-slate-400',   text: 'text-slate-600',  badge: 'bg-slate-100 text-slate-600',  icon: Info },
 };
 
+const TIPO_LABEL: Record<string, string> = {
+  CICLO_ACIMA:        'Ciclo acima do padrão',
+  CICLO_ABAIXO:       'Ciclo abaixo do padrão',
+  CAVIDADE_ABAIXO:    'Cavidade abaixo do padrão',
+  TROCA_PRODUTO:      'Troca de produto',
+  MAQUINA_PARADA:     'Máquina parada',
+  SETUP_EXCESSIVO:    'Setup excessivo',
+  RECORRENCIA:        'Recorrência',
+  DIVERGENCIA_PADRAO: 'Divergência de padrão',
+  NOVO_OP:            'Novo OP',
+  SEM_LEITURA:        'Sem leitura',
+};
+
 function formatTipo(tipo: string) {
-  return tipo.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase());
+  return TIPO_LABEL[tipo] ?? tipo.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase());
 }
 
 function formatHora(iso: string) {
@@ -37,19 +50,27 @@ function formatHora(iso: string) {
 export default function AlertasPage() {
   const [filtroSev, setFiltroSev] = useState<string>('TODOS');
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 50;
 
   const { data: contagem, isLoading: loadingCount } = useContagemAlertas();
-  const { data: alertasData, isLoading: loadingList } = useAlertas({ limit: 50 });
+  const { data: alertasData, isLoading: loadingList } = useAlertas({ limit: 200 });
 
   const c = (contagem as Contagem | undefined) ?? MOCK_CONTAGEM;
   const raw = alertasData as any;
-  const alertas: Alerta[] = Array.isArray(raw) ? raw : Array.isArray(raw?.alertas) ? raw.alertas : [];
+  const alertas: Alerta[] = Array.isArray(raw) ? raw
+    : Array.isArray(raw?.items)   ? raw.items
+    : Array.isArray(raw?.alertas) ? raw.alertas
+    : [];
 
   const alertasFiltrados = alertas.filter(a => {
     if (filtroSev !== 'TODOS' && a.severidade !== filtroSev) return false;
     if (apenasNaoLidos && a.lido) return false;
     return true;
   });
+
+  const totalPages = Math.ceil(alertasFiltrados.length / PER_PAGE);
+  const alertasPagina = alertasFiltrados.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   if (loadingCount && loadingList) return <PageLoading />;
 
@@ -76,7 +97,7 @@ export default function AlertasPage() {
         {['TODOS', 'CRITICO', 'ATENCAO', 'INFO'].map(f => (
           <button
             key={f}
-            onClick={() => setFiltroSev(f)}
+            onClick={() => { setFiltroSev(f); setPage(1); }}
             className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
               filtroSev === f
                 ? 'bg-[var(--operis-petroleum)] text-white border-transparent'
@@ -87,7 +108,7 @@ export default function AlertasPage() {
           </button>
         ))}
         <button
-          onClick={() => setApenasNaoLidos(v => !v)}
+          onClick={() => { setApenasNaoLidos(v => !v); setPage(1); }}
           className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ml-auto ${
             apenasNaoLidos
               ? 'bg-[var(--operis-petroleum)] text-white border-transparent'
@@ -106,7 +127,7 @@ export default function AlertasPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {alertasFiltrados.map(a => {
+          {alertasPagina.map(a => {
             const cfg = SEV_CONFIG[a.severidade] ?? SEV_CONFIG.INFO;
             const Icon = cfg.icon;
             return (
@@ -119,14 +140,12 @@ export default function AlertasPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-sm text-operis-dark">MÁQ {a.maquina}</span>
+                    <span className="font-bold text-sm text-operis-dark">{a.maquina}</span>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.badge}`}>{cfg.label}</span>
                     <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{formatTipo(a.tipo)}</span>
                     {a.lido && <span className="text-xs text-slate-400">• lido</span>}
                   </div>
-                  {/* Título do alerta */}
                   <p className={`text-sm font-semibold mt-0.5 ${cfg.text}`}>{a.titulo}</p>
-                  {/* Motivo / Descrição */}
                   {a.descricao && (
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{a.descricao}</p>
                   )}
@@ -138,6 +157,25 @@ export default function AlertasPage() {
               </div>
             );
           })}
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs text-slate-400">
+                {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, alertasFiltrados.length)} de {alertasFiltrados.length}
+              </p>
+              <div className="flex gap-1">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className="px-3 py-1 text-xs rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50">
+                  ‹ Anterior
+                </button>
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  className="px-3 py-1 text-xs rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50">
+                  Próxima ›
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
