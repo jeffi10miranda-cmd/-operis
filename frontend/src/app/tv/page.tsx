@@ -166,11 +166,34 @@ const STATUS_LIGHT: Record<string, { label:string; bg:string; icon:React.Element
 const FALLBACK_DARK = { label:'', bg:'bg-slate-500/20 border-slate-500/40 text-slate-400', icon:Clock, dot:'bg-slate-500' };
 const FALLBACK_LIGHT = { label:'', bg:'bg-slate-100 border-slate-300 text-slate-500',       icon:Clock, dot:'bg-slate-400' };
 
+// ── Config de cores do card TV (borda + texto, fundo sempre escuro) ──
+const TV_STATUS: Record<string, { label:string; border:string; text:string; icon:React.ElementType; dot:string }> = {
+  EM_PRODUCAO:          { label:'Em Produção',   border:'border-green-500/50',  text:'text-green-400',    icon:Play,        dot:'bg-green-400'   },
+  SETUP:                { label:'Setup',          border:'border-amber-400/50',  text:'text-amber-300',    icon:Settings,    dot:'bg-amber-400'   },
+  SETUP_DE_COR:         { label:'Setup de Cor',   border:'border-amber-400/50',  text:'text-amber-300',    icon:Droplets,    dot:'bg-amber-400'   },
+  REGULAGEM:            { label:'Regulagem',      border:'border-purple-500/50', text:'text-purple-400',   icon:Gauge,       dot:'bg-purple-400'  },
+  MANUTENCAO:           { label:'Manutenção',     border:'border-red-500/50',    text:'text-red-400',      icon:Wrench,      dot:'bg-red-400'     },
+  FERRAMENTARIA:        { label:'Ferramentaria',  border:'border-red-500/50',    text:'text-red-400',      icon:Wrench,      dot:'bg-red-400'     },
+  AGUARDANDO_MP:        { label:'Aguard. MP',     border:'border-orange-400/50', text:'text-orange-400',   icon:Clock,       dot:'bg-orange-400'  },
+  AGUARDANDO_TECNICO:   { label:'Aguard. Tec.',   border:'border-orange-400/50', text:'text-orange-400',   icon:Clock,       dot:'bg-orange-400'  },
+  AGUARDANDO_LIBERACAO: { label:'Aguard. Lib.',   border:'border-orange-400/50', text:'text-orange-400',   icon:Clock,       dot:'bg-orange-400'  },
+  AGUARDANDO_ESTUFAGEM: { label:'Aguard. Est.',   border:'border-orange-400/50', text:'text-orange-400',   icon:Clock,       dot:'bg-orange-400'  },
+  PARADA:               { label:'Parada',         border:'border-red-600/50',    text:'text-red-400',      icon:StopCircle,  dot:'bg-red-500'     },
+  INATIVA:              { label:'Inativa',        border:'border-slate-500/50',  text:'text-slate-400',    icon:Power,       dot:'bg-slate-500'   },
+  REINICIO:             { label:'Reinício',       border:'border-purple-400/50', text:'text-purple-400',   icon:RotateCcw,   dot:'bg-purple-400'  },
+  TRYOUT:               { label:'Tryout',         border:'border-purple-500/50', text:'text-purple-400',   icon:Gauge,       dot:'bg-purple-400'  },
+  TROCA_DE_VERSAO:      { label:'Troca Versão',   border:'border-amber-400/50',  text:'text-amber-300',    icon:Settings,    dot:'bg-amber-400'   },
+  FORA_DA_COR_PADRAO:   { label:'Fora Cor Padr.', border:'border-amber-500/50',  text:'text-amber-400',    icon:AlertCircle, dot:'bg-amber-500'   },
+  FALTA_DE_OPERADOR:    { label:'Falta Operador', border:'border-rose-500/50',   text:'text-rose-400',     icon:Clock,       dot:'bg-rose-500'    },
+  PARADA_PLANEJADA:     { label:'Parada Plan.',   border:'border-slate-500/50',  text:'text-slate-400',    icon:StopCircle,  dot:'bg-slate-500'   },
+};
+const TV_FALLBACK = { label:'', border:'border-white/10', text:'text-slate-400', icon:Clock, dot:'bg-slate-500' };
+
 // ── TV Machine Card ───────────────────────────
 function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }) {
-  // Cards sempre escuros independente do tema da página
-  const cfg   = STATUS_DARK[snapshot.status] ?? { ...FALLBACK_DARK, label: snapshot.status };
-  const Icon  = cfg.icon;
+  void theme; // tema controla apenas fundo/header da página
+  const cfg  = TV_STATUS[snapshot.status] ?? { ...TV_FALLBACK, label: snapshot.status };
+  const Icon = cfg.icon;
 
   const cycleOff =
     snapshot.cicloAtual && snapshot.produto?.ciclopadrao
@@ -182,14 +205,16 @@ function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }
     snapshot.produto?.cavidadepadrao != null &&
     snapshot.cavidadeReal < snapshot.produto.cavidadepadrao;
 
-  const numBg   = 'bg-black/20';
+  const numBg   = 'bg-black/25';
   const numText = 'text-slate-300';
   const prodTxt = 'text-slate-300';
   const nameTxt = 'text-white';
-  void theme; // tema controla apenas o fundo/header da página
 
   return (
-    <div className={`rounded-2xl border p-4 flex flex-col gap-2.5 ${cfg.bg} ${snapshot.divergente ? 'ring-2 ring-amber-400/60' : ''}`}>
+    <div
+      className={`rounded-2xl border p-4 flex flex-col gap-2.5 ${cfg.border} ${snapshot.divergente ? 'ring-2 ring-amber-400/60' : ''}`}
+      style={{ background: 'rgba(6,14,22,0.97)' }}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
@@ -198,7 +223,7 @@ function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }
         <Icon size={16} className="opacity-50" />
       </div>
 
-      <span className="text-[11px] font-bold uppercase tracking-wide opacity-90 leading-none">{cfg.label}</span>
+      <span className={`text-[11px] font-bold uppercase tracking-wide opacity-90 leading-none ${cfg.text}`}>{cfg.label}</span>
 
       <p className={`text-xs leading-tight line-clamp-1 font-medium ${prodTxt}`}>
         {snapshot.produtoNome || snapshot.produto?.descricao || '—'}
