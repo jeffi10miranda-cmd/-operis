@@ -49,6 +49,34 @@ const statusConfig: Record<string, { label: string; pill: string; icon: React.El
 
 const fallback = { label: '', pill: 'bg-slate-300 text-white', icon: Clock, dot: 'bg-slate-300' };
 
+const FICHA_OPCOES = [
+  { value: 'Certa',     label: 'Certa',      bg: 'bg-green-500 text-white',  inactive: 'bg-white text-gray-400 border border-gray-200 hover:border-green-400 hover:text-green-600' },
+  { value: 'Errada',    label: 'Errada',     bg: 'bg-red-500 text-white',    inactive: 'bg-white text-gray-400 border border-gray-200 hover:border-red-400 hover:text-red-600' },
+  { value: 'Não consta', label: 'Não consta', bg: 'bg-slate-400 text-white',  inactive: 'bg-white text-gray-400 border border-gray-200 hover:border-slate-400 hover:text-slate-600' },
+];
+
+function FichaTecnicaToggle({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const normalizado = value?.trim().toLowerCase();
+  const atual = FICHA_OPCOES.find(o => o.value.toLowerCase() === normalizado);
+
+  return (
+    <div className="flex gap-1">
+      {FICHA_OPCOES.map((op) => {
+        const ativo = op.value.toLowerCase() === normalizado;
+        return (
+          <button
+            key={op.value}
+            onClick={() => onChange(op.value)}
+            className={`flex-1 text-[10px] font-bold px-1 py-1 rounded-lg transition-colors ${ativo ? op.bg : op.inactive}`}
+          >
+            {op.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function MachineCard({
   maquina, name, product, status,
   cycleCurrent, cycleTarget,
@@ -65,6 +93,7 @@ export function MachineCard({
   const [loading, setLoading]           = useState(false);
   const [override, setOverride]         = useState(manualOverride ?? false);
   const [showModal, setShowModal]       = useState(false);
+  const [localFicha, setLocalFicha]     = useState(observation ?? '');
 
   const cfg = statusConfig[localStatus] ?? { ...fallback, label: localStatus };
   const StatusIcon = cfg.icon;
@@ -218,9 +247,19 @@ export function MachineCard({
         <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${barWidth}%` }} />
       </div>
 
-      {observation && (
-        <p className="text-[11px] text-gray-400 mt-2 line-clamp-1">💬 {observation}</p>
-      )}
+      {/* Ficha Técnica — seleção interativa */}
+      <div className="mt-2 pt-2 border-t border-gray-100">
+        <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-1">Ficha Técnica</p>
+        <FichaTecnicaToggle
+          value={localFicha}
+          onChange={async (v) => {
+            if (!maquina) return;
+            setLocalFicha(v);
+            try { await api.patch(`/snapshots/maquina/${maquina}`, { observacao: v }); }
+            catch { setLocalFicha(localFicha); }
+          }}
+        />
+      </div>
     </div>
     </>
   );
