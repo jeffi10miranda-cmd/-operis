@@ -3,6 +3,7 @@
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { TurnoProvider, useTurno, type TurnoValue } from '@/contexts/turno-context';
 import {
   Home, Calendar, BarChart3, Bell, Settings,
   LogOut, Menu, X, ChevronDown, ChevronLeft, User as UserIcon, Tv, type LucideIcon,
@@ -50,16 +51,17 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
 };
 
 const turnos = [
-  { value: 'PRIMEIRO', label: '1º Turno', horario: '06:00 – 14:00' },
-  { value: 'SEGUNDO',  label: '2º Turno', horario: '14:00 – 22:00' },
-  { value: 'TERCEIRO', label: '3º Turno', horario: '22:00 – 06:00' },
+  { value: 'TODOS',    label: 'Todos os Turnos', horario: '' },
+  { value: 'PRIMEIRO', label: '1º Turno',         horario: '06:00 – 14:00' },
+  { value: 'SEGUNDO',  label: '2º Turno',         horario: '14:00 – 22:00' },
+  { value: 'TERCEIRO', label: '3º Turno',         horario: '22:00 – 06:00' },
 ];
 
 function formatAlertTime(iso: string) {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function OperisLayout({ children }: { children: ReactNode }) {
+function OperisLayoutInner({ children }: { children: ReactNode }) {
   const pathname  = usePathname();
   const router    = useRouter();
   const { data: contagem } = useContagemAlertas();
@@ -93,7 +95,7 @@ export function OperisLayout({ children }: { children: ReactNode }) {
   const [turnoOpen,     setTurnoOpen]     = useState(false);
   const [bellOpen,      setBellOpen]      = useState(false);
   const [userMenuOpen,  setUserMenuOpen]  = useState(false);
-  const [turnoAtual,    setTurnoAtual]    = useState('SEGUNDO');
+  const { turnoAtual, setTurnoAtual } = useTurno();
   const turnoRef  = useRef<HTMLDivElement>(null);
   const bellRef   = useRef<HTMLDivElement>(null);
   const userRef   = useRef<HTMLDivElement>(null);
@@ -250,7 +252,7 @@ export function OperisLayout({ children }: { children: ReactNode }) {
                     {turnos.map((t) => (
                       <button
                         key={t.value}
-                        onClick={() => { setTurnoAtual(t.value); setTurnoOpen(false); }}
+                        onClick={() => { setTurnoAtual(t.value as TurnoValue); setTurnoOpen(false); }}
                         className={`w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
                           turnoAtual === t.value ? 'text-operis-dark font-semibold' : 'text-gray-600'
                         }`}
@@ -395,5 +397,13 @@ export function OperisLayout({ children }: { children: ReactNode }) {
         </main>
       </div>
     </div>
+  );
+}
+
+export function OperisLayout({ children }: { children: ReactNode }) {
+  return (
+    <TurnoProvider>
+      <OperisLayoutInner>{children}</OperisLayoutInner>
+    </TurnoProvider>
   );
 }

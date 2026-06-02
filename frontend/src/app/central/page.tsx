@@ -8,6 +8,7 @@ import {
 import { MachineCard } from '@/components/machine-card';
 import { CentralSkeleton } from '@/components/skeleton';
 import { useKPIs, useSnapshotsHoje } from '@/lib/api';
+import { useTurno } from '@/contexts/turno-context';
 import { useSocket } from '@/hooks/useSocket';
 import type { KPIsData, Snapshot } from '@/types/operis';
 import {
@@ -114,8 +115,8 @@ const TURNO_CONFIG = [
 
 export default function CentralPage() {
   useSocket();
-  const [turnoView, setTurnoView]   = useState<TurnoView>('TODOS');
-  const [viewMode, setViewMode]     = useState<'grid' | 'list'>('grid');
+  const { turnoAtual: turnoView } = useTurno();
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const { data: kpisData, isLoading: kpiLoading, error: kpiError } = useKPIs();
   const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO');
@@ -182,37 +183,15 @@ export default function CentralPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-3 sm:gap-5 items-start">
         <div className="card p-3 sm:p-5 space-y-3 sm:space-y-4">
-          {/* Header com tabs de turno e toggle de view */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-base font-bold text-operis-dark">Status das Máquinas</h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Tabs de turno */}
-              <div className="flex border border-gray-200 rounded-xl overflow-hidden text-xs font-semibold">
-                <button
-                  onClick={() => setTurnoView('TODOS')}
-                  className={`px-3 py-1.5 transition-colors ${turnoView === 'TODOS' ? 'bg-operis-dark text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-                >
-                  Todos
-                </button>
-                {TURNO_CONFIG.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTurnoView(t.id)}
-                    className={`px-3 py-1.5 transition-colors border-l border-gray-200 ${turnoView === t.id ? 'bg-operis-dark text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              {/* Toggle grid/list */}
-              <div className="flex border border-gray-200 rounded-xl overflow-hidden">
-                <button onClick={() => setViewMode('grid')} className={`p-2 ${viewMode === 'grid' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400'}`}>
-                  <LayoutGrid size={16} />
-                </button>
-                <button onClick={() => setViewMode('list')} className={`p-2 ${viewMode === 'list' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400'}`}>
-                  <List size={16} />
-                </button>
-              </div>
+            <div className="flex border border-gray-200 rounded-xl overflow-hidden">
+              <button onClick={() => setViewMode('grid')} className={`p-2 ${viewMode === 'grid' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
+                <LayoutGrid size={16} />
+              </button>
+              <button onClick={() => setViewMode('list')} className={`p-2 ${viewMode === 'list' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
+                <List size={16} />
+              </button>
             </div>
           </div>
 
