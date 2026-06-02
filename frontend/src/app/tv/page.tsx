@@ -425,7 +425,7 @@ function TvScrollGrid({ snapshots, theme }: { snapshots: Snapshot[]; theme: Them
   return (
     <div
       ref={wrapRef}
-      className="tv-scroll-wrap h-full w-full"
+      className="tv-scroll-wrap absolute inset-0"
       onMouseEnter={() => { pauseRef.current = true;  }}
       onMouseLeave={() => { pauseRef.current = false; }}
     >
@@ -584,7 +584,7 @@ export default function TvPage() {
       <main className="flex-1 overflow-hidden flex min-h-0">
 
         {/* Área principal */}
-        <div className="flex-1 overflow-hidden px-5 py-4 min-w-0">
+        <div className="flex-1 overflow-hidden px-5 py-4 min-w-0 relative">
           {view === 'maquinas' ? (
             <TvScrollGrid snapshots={snapshots} theme={theme} />
           ) : (
