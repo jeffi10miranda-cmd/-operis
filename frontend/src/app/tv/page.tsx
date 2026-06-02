@@ -373,6 +373,52 @@ function LiveClock({ theme }: { theme: Theme }) {
   );
 }
 
+// ── Prioridade de exibição no scroll ─────────
+function statusPriority(status: string): number {
+  if (status === 'INATIVA')                                      return 0;
+  if (['PARADA', 'PARADA_PLANEJADA'].includes(status))           return 1;
+  if (['MANUTENCAO', 'FERRAMENTARIA'].includes(status))          return 2;
+  if (status.startsWith('AGUARDANDO'))                           return 3;
+  if (status === 'EM_PRODUCAO')                                  return 5;
+  return 4; // Setup, Regulagem, Tryout, etc.
+}
+
+// ── Grid com auto-scroll vertical ────────────
+const COLS = 6;
+
+function TvScrollGrid({ snapshots, theme }: { snapshots: Snapshot[]; theme: Theme }) {
+  const sorted  = useMemo(
+    () => [...snapshots].sort((a, b) => statusPriority(a.status) - statusPriority(b.status)),
+    [snapshots],
+  );
+  const rows     = Math.max(1, Math.ceil(sorted.length / COLS));
+  const duration = Math.max(20, rows * 8); // ~8s por linha, mínimo 20s
+
+  return (
+    <div className="overflow-hidden h-full w-full">
+      <style>{`
+        @keyframes tv-scroll-up {
+          from { transform: translateY(0); }
+          to   { transform: translateY(-50%); }
+        }
+        .tv-auto-scroll {
+          animation: tv-scroll-up ${duration}s linear infinite;
+        }
+        .tv-auto-scroll:hover { animation-play-state: paused; }
+      `}</style>
+      <div
+        className={`tv-auto-scroll grid gap-3`}
+        style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
+      >
+        {/* conteúdo duplicado para loop sem corte */}
+        {[...sorted, ...sorted].map((s, i) => (
+          <TvMachineCard key={`${s.id}-${i}`} snapshot={s} theme={theme} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Página principal ──────────────────────────
 type TvView = 'maquinas' | 'comparativo';
 
@@ -518,11 +564,7 @@ export default function TvPage() {
         {/* Área principal */}
         <div className="flex-1 overflow-hidden px-5 py-4 min-w-0">
           {view === 'maquinas' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 h-full overflow-y-auto">
-              {snapshots.map((s) => (
-                <TvMachineCard key={s.id} snapshot={s} theme={theme} />
-              ))}
-            </div>
+            <TvScrollGrid snapshots={snapshots} theme={theme} />
           ) : (
             <TvComparativo theme={theme} />
           )}
