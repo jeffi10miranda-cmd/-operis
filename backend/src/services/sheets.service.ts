@@ -49,13 +49,21 @@ const STATUS_MAP: Record<string, string> = {
   'reinicio':                 'REINICIO',
   'reinício':                 'REINICIO',
   'tryout':                   'TRYOUT',
+  'try out':                  'TRYOUT',
   'troca de versao':          'TROCA_DE_VERSAO',
   'troca de versão':          'TROCA_DE_VERSAO',
+  'troca de molde':           'TROCA_DE_VERSAO',
+  'troca molde':              'TROCA_DE_VERSAO',
+  'troca de ferramenta':      'TROCA_DE_VERSAO',
+  'setup de molde':           'SETUP',
+  'set up':                   'SETUP',
   'fora da cor padrao':       'FORA_DA_COR_PADRAO',
   'fora da cor padrão':       'FORA_DA_COR_PADRAO',
   'inativa':                  'INATIVA',
   'nao programada':           'INATIVA',
   'não programada':           'INATIVA',
+  'sem producao':             'INATIVA',
+  'sem produção':             'INATIVA',
 };
 
 export function mapearStatus(rawStatus: string): string {
