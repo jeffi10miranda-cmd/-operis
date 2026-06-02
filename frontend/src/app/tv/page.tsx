@@ -125,13 +125,13 @@ const COMP_KPI = [
 ];
 
 // ── Status config com fundos sólidos ─────────
-type StatusCfg = { label:string; card:string; border:string; text:string; numBg:string; numText:string; nameTxt:string; prodTxt:string; icon:React.ElementType; dot:string };
+type StatusCfg = { label:string; card:string; border:string; text:string; numBg:string; numText:string; labelTxt:string; nameTxt:string; prodTxt:string; icon:React.ElementType; dot:string };
 
 function makeDark(label:string, card:string, border:string, text:string, icon:React.ElementType, dot:string): StatusCfg {
-  return { label, card, border, text, numBg:'bg-black/25', numText:'text-slate-300', nameTxt:'text-white', prodTxt:'text-slate-300', icon, dot };
+  return { label, card, border, text, numBg:'bg-black/30', numText:'text-white', labelTxt:'text-slate-400', nameTxt:'text-white', prodTxt:'text-slate-200', icon, dot };
 }
 function makeLight(label:string, card:string, border:string, text:string, icon:React.ElementType, dot:string): StatusCfg {
-  return { label, card, border, text, numBg:'bg-black/[0.06]', numText:'text-gray-700', nameTxt:'text-gray-900', prodTxt:'text-gray-600', icon, dot };
+  return { label, card, border, text, numBg:'bg-black/[0.12]', numText:'text-gray-950', labelTxt:'text-gray-600', nameTxt:'text-gray-950', prodTxt:'text-gray-800', icon, dot };
 }
 
 const STATUS_DARK: Record<string, StatusCfg> = {
@@ -217,24 +217,24 @@ function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }
 
       <div className="grid grid-cols-2 gap-1.5 mt-auto">
         <div className={`${cfg.numBg} rounded-lg px-2 py-1.5 text-center`}>
-          <p className="text-[9px] text-slate-400 uppercase tracking-wide leading-none mb-0.5">Ciclo</p>
+          <p className={`text-[9px] font-semibold uppercase tracking-wide leading-none mb-0.5 ${cfg.labelTxt}`}>Ciclo</p>
           <p className={`text-sm font-bold leading-none ${
             cycleOff === null ? cfg.numText :
             cycleOff > 5 ? 'text-red-500' :
-            cycleOff < -5 ? 'text-blue-500' : 'text-green-500'
+            cycleOff < -5 ? 'text-blue-400' : 'text-green-500'
           }`}>
             {snapshot.cicloAtual ? `${snapshot.cicloAtual}s` : '—'}
             {cycleOff !== null && cycleOff !== 0 && (
-              <span className="text-[10px] ml-1 opacity-60">{cycleOff > 0 ? `+${cycleOff}` : cycleOff}%</span>
+              <span className="text-[10px] ml-1 font-semibold">{cycleOff > 0 ? `+${cycleOff}` : cycleOff}%</span>
             )}
           </p>
         </div>
         <div className={`${cfg.numBg} rounded-lg px-2 py-1.5 text-center`}>
-          <p className="text-[9px] text-slate-400 uppercase tracking-wide leading-none mb-0.5">Cavidade</p>
+          <p className={`text-[9px] font-semibold uppercase tracking-wide leading-none mb-0.5 ${cfg.labelTxt}`}>Cavidade</p>
           <p className={`text-sm font-bold leading-none ${cavityBad ? 'text-red-500' : cfg.numText}`}>
             {snapshot.cavidadeReal ?? '—'}
             {snapshot.produto?.cavidadepadrao ? (
-              <span className="text-[10px] opacity-40">/{snapshot.produto.cavidadepadrao}</span>
+              <span className={`text-[10px] font-medium ${cfg.labelTxt}`}>/{snapshot.produto.cavidadepadrao}</span>
             ) : null}
           </p>
         </div>

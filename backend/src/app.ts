@@ -15,6 +15,7 @@ import { comparativosRouter } from './routes/comparativos.routes';
 import { configuracaoRouter } from './routes/configuracao.routes';
 import { sheetsRouter } from './routes/sheets.routes';
 import { logsRouter } from './routes/logs.routes';
+import { statsRouter } from './routes/stats.routes';
 
 export const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/comparativos',  comparativosRouter);
 app.use('/api/configuracao',  configuracaoRouter);
 app.use('/api/sheets',        sheetsRouter);
 app.use('/api/logs',          logsRouter);
+app.use('/api/stats',         statsRouter);
 
 // ── 404 ────────────────────────────────────────
 app.use((_req, res) => {
