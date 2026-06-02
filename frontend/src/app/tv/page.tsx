@@ -387,30 +387,22 @@ function statusPriority(status: string): number {
 const COLS = 6;
 
 function TvScrollGrid({ snapshots, theme }: { snapshots: Snapshot[]; theme: Theme }) {
-  const sorted  = useMemo(
+  const sorted   = useMemo(
     () => [...snapshots].sort((a, b) => statusPriority(a.status) - statusPriority(b.status)),
     [snapshots],
   );
   const rows     = Math.max(1, Math.ceil(sorted.length / COLS));
-  const duration = Math.max(20, rows * 8); // ~8s por linha, mínimo 20s
+  const duration = `${Math.max(20, rows * 8)}s`;
 
   return (
     <div className="overflow-hidden h-full w-full">
-      <style>{`
-        @keyframes tv-scroll-up {
-          from { transform: translateY(0); }
-          to   { transform: translateY(-50%); }
-        }
-        .tv-auto-scroll {
-          animation: tv-scroll-up ${duration}s linear infinite;
-        }
-        .tv-auto-scroll:hover { animation-play-state: paused; }
-      `}</style>
       <div
-        className={`tv-auto-scroll grid gap-3`}
-        style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
+        className="tv-auto-scroll grid gap-3"
+        style={{
+          gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
+          ['--tv-scroll-duration' as string]: duration,
+        }}
       >
-        {/* conteúdo duplicado para loop sem corte */}
         {[...sorted, ...sorted].map((s, i) => (
           <TvMachineCard key={`${s.id}-${i}`} snapshot={s} theme={theme} />
         ))}
