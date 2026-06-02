@@ -6,6 +6,7 @@ import {
   Droplets, RotateCcw, Wrench, PowerOff, Check, X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { StatusSelectModal } from './status-select-modal';
 
 interface MachineCardProps {
   snapshotId?: string;
@@ -42,6 +43,8 @@ const statusConfig: Record<string, { label: string; pill: string; icon: React.El
   TRYOUT:               { label: 'Tryout',               pill: 'bg-purple-500 text-white',   icon: Gauge,       dot: 'bg-purple-500' },
   TROCA_DE_VERSAO:      { label: 'Troca de Versão',      pill: 'bg-amber-400 text-white',    icon: Settings,    dot: 'bg-amber-400' },
   FORA_DA_COR_PADRAO:   { label: 'Fora da Cor Padrão',   pill: 'bg-amber-500 text-white',    icon: AlertCircle, dot: 'bg-amber-500' },
+  FALTA_DE_OPERADOR:    { label: 'Falta de Operador',    pill: 'bg-rose-500 text-white',     icon: Clock,       dot: 'bg-rose-500' },
+  PARADA_PLANEJADA:     { label: 'Parada Planejada',     pill: 'bg-slate-500 text-white',    icon: StopCircle,  dot: 'bg-slate-500' },
 };
 
 const fallback = { label: '', pill: 'bg-slate-300 text-white', icon: Clock, dot: 'bg-slate-300' };
@@ -61,6 +64,7 @@ export function MachineCard({
   const [qtdInput, setQtdInput]         = useState('');
   const [loading, setLoading]           = useState(false);
   const [override, setOverride]         = useState(manualOverride ?? false);
+  const [showModal, setShowModal]       = useState(false);
 
   const cfg = statusConfig[localStatus] ?? { ...fallback, label: localStatus };
   const StatusIcon = cfg.icon;
@@ -83,8 +87,19 @@ export function MachineCard({
 
   async function handleToggle() {
     if (!maquina || loading) return;
-    const novoStatus = ativo ? 'INATIVA' : 'EM_PRODUCAO';
+    if (ativo) {
+      // Máquina ligada → abre modal para escolher motivo
+      setShowModal(true);
+    } else {
+      // Máquina parada → liga direto
+      await aplicarStatus('EM_PRODUCAO');
+    }
+  }
+
+  async function aplicarStatus(novoStatus: string) {
+    if (!maquina) return;
     setLoading(true);
+    setShowModal(false);
     try {
       await api.patch(`/snapshots/maquina/${maquina}`, { status: novoStatus });
       setLocalStatus(novoStatus);
@@ -109,6 +124,14 @@ export function MachineCard({
   }
 
   return (
+    <>
+    {showModal && maquina && (
+      <StatusSelectModal
+        maquina={maquina}
+        onSelect={aplicarStatus}
+        onClose={() => setShowModal(false)}
+      />
+    )}
     <div className={`machine-card ${divergent ? 'ring-2 ring-amber-400' : ''} ${!ativo ? 'opacity-75' : ''}`}>
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
@@ -199,5 +222,6 @@ export function MachineCard({
         <p className="text-[11px] text-gray-400 mt-2 line-clamp-1">💬 {observation}</p>
       )}
     </div>
+    </>
   );
 }
