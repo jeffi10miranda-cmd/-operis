@@ -121,9 +121,18 @@ export async function lerPlanilha(
     });
 
     const rows = response.data.values;
+    logger.info(`Aba "${nomeAba}": ${rows?.length ?? 0} linhas brutas recebidas da API`);
+
     if (!rows || rows.length < 2) {
       logger.warn(`Planilha ${spreadsheetId} aba "${nomeAba ?? 'padrão'}" vazia ou sem dados`);
       return [];
+    }
+
+    // Log das primeiras linhas para debug de colunas
+    if (rows.length > 1) {
+      logger.info(`Cabeçalho: ${JSON.stringify(rows[0])}`);
+      logger.info(`Linha 2: ${JSON.stringify(rows[1])}`);
+      if (rows[4]) logger.info(`Linha 5: ${JSON.stringify(rows[4])}`);
     }
 
     // Primeira linha = cabeçalho, ignora
