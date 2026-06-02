@@ -109,7 +109,7 @@ export default function ComparativosPage() {
   const [periodoA, setPeriodoA]   = useState('2026-05-19');
   const [periodoB, setPeriodoB]   = useState('2026-05-20');
   const [page, setPage]           = useState(1);
-  const TOTAL_PAGES = 4;
+  const PER_PAGE = 8;
 
   const isDias = tipoAnalise === 'Comparativo de dias';
   const isTurnos = tipoAnalise === 'Comparativo de turnos';
@@ -123,6 +123,7 @@ export default function ComparativosPage() {
   );
 
   const tableRows = useMemo(() => {
+    setPage(1);
     if (isDias && Array.isArray(diasData) && diasData.length > 0) {
       return (diasData as ComparativoApiRow[]).map(mapComparativoRow);
     }
@@ -132,6 +133,9 @@ export default function ComparativosPage() {
   const apiLoading = (isDias && diasLoading) || (isTurnos && turnosLoading);
   const apiError = diasError || turnosError;
   const tabsComDados: Tab[] = ['Resumo geral', 'Máquinas'];
+
+  const TOTAL_PAGES = Math.max(1, Math.ceil(tableRows.length / PER_PAGE));
+  const rowsPagina  = tableRows.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
     <div className="space-y-4">
@@ -267,7 +271,7 @@ export default function ComparativosPage() {
               </div>
 
               {/* Rows */}
-              {tableRows.map((row) => {
+              {rowsPagina.map((row) => {
                 const sCfg = statusConfig[row.statusType] ?? statusConfig.ok;
                 const isDanger = row.deltaCiclo !== '-' && row.statusType === 'danger';
                 return (
@@ -292,18 +296,23 @@ export default function ComparativosPage() {
 
               {/* Pagination */}
               <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
-                <p className="text-xs text-gray-400">Exibindo 1 a 8 de 30 máquinas</p>
+                <p className="text-xs text-gray-400">
+                  Exibindo {(page-1)*PER_PAGE + 1}–{Math.min(page*PER_PAGE, tableRows.length)} de {tableRows.length} máquinas
+                </p>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setPage(Math.max(1, page-1))} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors" disabled={page === 1}>
+                  <button onClick={() => setPage(p => Math.max(1, p-1))} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors" disabled={page === 1}>
                     <ChevronLeft size={14} className="text-gray-500" />
                   </button>
-                  {Array.from({length: TOTAL_PAGES}, (_,i) => i+1).map((p) => (
-                    <button key={p} onClick={() => setPage(p)}
-                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${page === p ? 'bg-operis-dark text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
-                      {p}
-                    </button>
-                  ))}
-                  <button onClick={() => setPage(Math.min(TOTAL_PAGES, page+1))} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors" disabled={page === TOTAL_PAGES}>
+                  {Array.from({length: Math.min(TOTAL_PAGES, 5)}, (_,i) => {
+                    const pg = page <= 3 ? i+1 : page + i - 2;
+                    return pg > 0 && pg <= TOTAL_PAGES ? (
+                      <button key={pg} onClick={() => setPage(pg)}
+                        className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${page === pg ? 'bg-operis-dark text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                        {pg}
+                      </button>
+                    ) : null;
+                  })}
+                  <button onClick={() => setPage(p => Math.min(TOTAL_PAGES, p+1))} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors" disabled={page === TOTAL_PAGES}>
                     <ChevronRight size={14} className="text-gray-500" />
                   </button>
                 </div>
