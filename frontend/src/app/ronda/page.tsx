@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useSnapshotsHoje, useProdutos, api } from '@/lib/api';
+import { RondaCard } from '@/components/ronda-card';
 import {
   Calendar, Search, Plus, Edit2, PowerOff, Trash2,
   CheckCircle2, AlertTriangle, AlertCircle,
@@ -915,11 +916,11 @@ function TabApontar() {
               <RotateCcw size={14} /> Limpar
             </button>
             <button
-              onClick={() => setFinalizado(true)}
-              disabled={preenchidos === 0}
+              onClick={salvarRonda}
+              disabled={preenchidos === 0 || salvando}
               className="btn-primary text-xs sm:text-sm gap-1.5 disabled:opacity-50 flex-1 sm:flex-none justify-center"
             >
-              <Save size={14} /> <span className="hidden xs:inline">Finalizar Ronda</span><span className="xs:hidden">Finalizar</span>
+              <Save size={14} /> {salvando ? 'Salvando...' : 'Salvar Ronda'}
             </button>
           </div>
         </div>
@@ -969,222 +970,32 @@ function TabApontar() {
         </div>
       </div>
 
-      {/* Tabela de apontamento */}
-      <div className="card overflow-x-auto">
-        {/* Cabeçalho */}
-        <div className="grid grid-cols-[88px_1fr_90px_90px_90px_100px_100px_160px_36px] gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 items-center min-w-[1100px]">
-          <span>Máquina</span>
-          <span>Produto</span>
-          <span className="text-center">OP</span>
-          <span className="text-center">Qtd. OP</span>
-          <span className="text-center">Acumulado</span>
-          <span className="text-center">Ciclo real</span>
-          <span className="text-center">Cav. real</span>
-          <span>Status</span>
-          <span />
+      {/* Grid de RondaCards */}
+      {loadingSnaps ? (
+        <div className='py-12 text-center text-gray-400 text-sm'>Carregando dados do turno...</div>
+      ) : snapshots.length === 0 ? (
+        <div className='card py-12 text-center text-gray-400 text-sm'>Nenhum dado sincronizado para este turno.</div>
+      ) : (
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3'>
+          {maquinasFiltradas.map((maq: string) => {
+            const snap = snapshots.find((s: any) => s.maquina === maq);
+            if (!snap) return null;
+            return (
+              <RondaCard
+                key={maq}
+                snapshot={snap}
+                produtos={produtosReais}
+                onApontado={() => {}}
+              />
+            );
+          })}
         </div>
-
-        {loadingSnaps && (
-          <div className="py-12 text-center text-gray-400">
-            <p className="text-sm">Carregando dados do turno...</p>
-          </div>
-        )}
-        {!loadingSnaps && maquinasFiltradas.length === 0 && (
-          <div className="py-12 text-center text-gray-400">
-            <ClipboardList size={28} className="mx-auto mb-2 opacity-30" />
-            <p className="text-sm">{maquinas.length === 0 ? 'Nenhum dado sincronizado para este turno.' : 'Nenhuma máquina encontrada'}</p>
-          </div>
-        )}
-
-        {/* Linhas */}
-        {maquinasFiltradas.map((maq, idx) => {
-          const ap  = apts[maq];
-          const val = getValidacao(ap);
-          const preenche = isPreenchido(ap);
-          const prod = MOCK_PRODUTOS.find(p => p.descricao === ap.produto);
-
-          const qtdOP      = Number(ap.qtdOP)  || 0;
-          const qtdAc      = Number(ap.qtdAcumulada) || 0;
-          const acPctReal  = qtdOP > 0 ? Math.round((qtdAc / qtdOP) * 100) : null;
-          const acPct      = acPctReal !== null ? Math.min(acPctReal, 100) : null;
-          const ultrapassou = qtdOP > 0 && qtdAc > qtdOP;
-
-          const rowBg =
-            !preenche     ? '' :
-            val && !val.ok ? 'bg-red-50/60' :
-            val && val.ok  ? 'bg-green-50/40' : '';
-
-          return (
-            <div key={maq} className="min-w-[1100px]">
-              <div
-                className={`grid grid-cols-[88px_1fr_90px_90px_90px_100px_100px_160px_36px] gap-2 px-4 py-2 border-b border-gray-50 last:border-0 items-center transition-colors ${rowBg} ${idx % 2 === 1 ? 'bg-gray-50/20' : ''}`}
-              >
-                {/* Máquina */}
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    !preenche ? 'bg-gray-200' :
-                    val && !val.ok ? 'bg-red-500' : 'bg-green-500'
-                  }`} />
-                  <span className="text-xs font-bold text-operis-dark">{maq}</span>
-                </div>
-
-                {/* Produto */}
-                <select
-                  value={ap.produto}
-                  onChange={e => setField(maq, 'produto', e.target.value)}
-                  className="input text-xs py-1.5 min-h-0 h-8"
-                >
-                  <option value="">Selecionar produto...</option>
-                  {produtosReais.filter((p: any) => p.ativo).map((p: any) => (
-                    <option key={p.id} value={p.descricao}>{p.descricao}</option>
-                  ))}
-                </select>
-
-                {/* OP */}
-                <input
-                  type="text"
-                  placeholder="Nº OP"
-                  value={ap.op}
-                  onChange={e => setField(maq, 'op', e.target.value)}
-                  className="input text-xs py-1.5 min-h-0 h-8 text-center"
-                />
-
-                {/* Qtd. OP */}
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="Total"
-                  value={ap.qtdOP}
-                  onChange={e => setField(maq, 'qtdOP', e.target.value)}
-                  className="input text-xs py-1.5 min-h-0 h-8 text-center"
-                />
-
-                {/* Qtd. Acumulada */}
-                <div>
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="Acum."
-                    value={ap.qtdAcumulada}
-                    onChange={e => setField(maq, 'qtdAcumulada', e.target.value)}
-                    className={`input text-xs py-1.5 min-h-0 h-8 text-center w-full font-semibold ${
-                      ultrapassou
-                        ? 'border-purple-400 bg-purple-50 text-purple-700 focus:border-purple-500'
-                        : acPct === 100
-                        ? 'border-green-400 bg-green-50'
-                        : ''
-                    }`}
-                  />
-                  {acPctReal !== null && (
-                    <div className="mt-0.5">
-                      <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            ultrapassou ? 'bg-purple-500' :
-                            acPct === 100 ? 'bg-green-500' :
-                            acPct! >= 50 ? 'bg-blue-400' : 'bg-amber-400'
-                          }`}
-                          style={{ width: `${acPct}%` }}
-                        />
-                      </div>
-                      <p className={`text-[9px] text-center leading-none mt-0.5 font-semibold ${
-                        ultrapassou ? 'text-purple-600' : 'text-gray-400'
-                      }`}>
-                        {acPctReal}%{ultrapassou && ' ▲'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Ciclo real */}
-                <div className="relative">
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder={prod ? `${prod.ciclopadrao}s` : 'seg'}
-                    value={ap.cicloReal}
-                    onChange={e => setField(maq, 'cicloReal', e.target.value)}
-                    className="input text-xs py-1.5 min-h-0 h-8 text-center w-full pr-5"
-                  />
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">s</span>
-                  {prod && <p className="text-[9px] text-center mt-0.5 leading-none text-gray-400">pad: {prod.ciclopadrao}s</p>}
-                </div>
-
-                {/* Cavidade real */}
-                <div>
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder={prod ? `${prod.cavidadepadrao}` : 'qtd'}
-                    value={ap.cavidadeReal}
-                    onChange={e => setField(maq, 'cavidadeReal', e.target.value)}
-                    className="input text-xs py-1.5 min-h-0 h-8 text-center w-full"
-                  />
-                  {prod && <p className="text-[9px] text-center mt-0.5 leading-none text-gray-400">pad: {prod.cavidadepadrao}</p>}
-                </div>
-
-                {/* Status */}
-                <select
-                  value={ap.status}
-                  onChange={e => setField(maq, 'status', e.target.value)}
-                  className="input text-xs py-1.5 min-h-0 h-8"
-                >
-                  <option value="">Status...</option>
-                  {Object.entries(STATUS_CFG).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
-                  ))}
-                </select>
-
-                {/* Observação */}
-                <button
-                  onClick={() => setObsAberta(obsAberta === maq ? null : maq)}
-                  className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors mx-auto ${
-                    ap.observacao
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'text-gray-300 hover:bg-gray-100 hover:text-gray-500'
-                  }`}
-                  title="Observação"
-                >
-                  <Info size={13} />
-                </button>
-              </div>
-
-              {/* Painel de observação inline */}
-              {obsAberta === maq && (
-                <div className="px-4 pb-2 bg-blue-50/50 border-b border-blue-100 min-w-[1100px]">
-                  <textarea
-                    rows={2}
-                    placeholder="Observação sobre esta máquina..."
-                    value={ap.observacao}
-                    onChange={e => setField(maq, 'observacao', e.target.value)}
-                    className="input text-xs w-full resize-none mt-1"
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Rodapé com ação */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-400">
-          {maquinas.length - preenchidos > 0
-            ? `${maquinas.length - preenchidos} máquina${maquinas.length - preenchidos !== 1 ? 's' : ''} ainda não apontada${maquinas.length - preenchidos !== 1 ? 's' : ''}`
-            : 'Todas as máquinas apontadas!'}
-        </p>
-        <button
-          onClick={() => setFinalizado(true)}
-          onClick={salvarRonda}
-          disabled={preenchidos === 0 || salvando}
-          className="btn-primary gap-2 disabled:opacity-50"
-        >
-          <Save size={15} /> {salvando ? 'Salvando...' : `Finalizar Ronda (${preenchidos}/${maquinas.length})`}
-        </button>
-      </div>
+      )}
     </div>
   );
 }
+
+// ── Página principal
 
 // ── Página principal ──────────────────────────
 type Tab = 'apontar' | 'registros' | 'resumo' | 'produtos';
