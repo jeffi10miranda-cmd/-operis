@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -124,75 +124,66 @@ const COMP_KPI = [
   { label:'Eficiência',     value:'76,8%',     delta:'+3,6%',  up:false },
 ];
 
-// ── Status config — dark e light ──────────────
-const STATUS_DARK: Record<string, { label:string; bg:string; icon:React.ElementType; dot:string }> = {
-  EM_PRODUCAO:          { label:'Em Produção',   bg:'bg-green-500/20 border-green-500/40 text-green-400',    icon:Play,        dot:'bg-green-400' },
-  SETUP:                { label:'Setup',          bg:'bg-amber-400/20 border-amber-400/40 text-amber-300',    icon:Settings,    dot:'bg-amber-400' },
-  SETUP_DE_COR:         { label:'Setup de Cor',   bg:'bg-amber-400/20 border-amber-400/40 text-amber-300',    icon:Droplets,    dot:'bg-amber-400' },
-  REGULAGEM:            { label:'Regulagem',      bg:'bg-purple-500/20 border-purple-500/40 text-purple-400', icon:Gauge,       dot:'bg-purple-400' },
-  MANUTENCAO:           { label:'Manutenção',     bg:'bg-red-500/20 border-red-500/40 text-red-400',          icon:Wrench,      dot:'bg-red-400' },
-  FERRAMENTARIA:        { label:'Ferramentaria',  bg:'bg-red-500/20 border-red-500/40 text-red-400',          icon:Wrench,      dot:'bg-red-400' },
-  AGUARDANDO_MP:        { label:'Aguard. MP',     bg:'bg-orange-400/20 border-orange-400/40 text-orange-400', icon:Clock,       dot:'bg-orange-400' },
-  AGUARDANDO_TECNICO:   { label:'Aguard. Tec.',   bg:'bg-orange-400/20 border-orange-400/40 text-orange-400', icon:Clock,       dot:'bg-orange-400' },
-  AGUARDANDO_LIBERACAO: { label:'Aguard. Lib.',   bg:'bg-orange-400/20 border-orange-400/40 text-orange-400', icon:Clock,       dot:'bg-orange-400' },
-  AGUARDANDO_ESTUFAGEM: { label:'Aguard. Est.',   bg:'bg-orange-400/20 border-orange-400/40 text-orange-400', icon:Clock,       dot:'bg-orange-400' },
-  PARADA:               { label:'Parada',         bg:'bg-red-600/20 border-red-600/40 text-red-400',          icon:StopCircle,  dot:'bg-red-500' },
-  INATIVA:              { label:'Inativa',        bg:'bg-slate-500/20 border-slate-500/40 text-slate-400',    icon:Power,       dot:'bg-slate-500' },
-  REINICIO:             { label:'Reinício',       bg:'bg-purple-400/20 border-purple-400/40 text-purple-400', icon:RotateCcw,   dot:'bg-purple-400' },
-  TRYOUT:               { label:'Tryout',         bg:'bg-purple-500/20 border-purple-500/40 text-purple-400', icon:Gauge,       dot:'bg-purple-400' },
-  TROCA_DE_VERSAO:      { label:'Troca Versão',   bg:'bg-amber-400/20 border-amber-400/40 text-amber-300',    icon:Settings,    dot:'bg-amber-400' },
-  FORA_DA_COR_PADRAO:   { label:'Fora Cor Padr.', bg:'bg-amber-500/20 border-amber-500/40 text-amber-400',    icon:AlertCircle, dot:'bg-amber-500' },
+// ── Status config com fundos sólidos ─────────
+type StatusCfg = { label:string; card:string; border:string; text:string; numBg:string; numText:string; nameTxt:string; prodTxt:string; icon:React.ElementType; dot:string };
+
+function makeDark(label:string, card:string, border:string, text:string, icon:React.ElementType, dot:string): StatusCfg {
+  return { label, card, border, text, numBg:'bg-black/25', numText:'text-slate-300', nameTxt:'text-white', prodTxt:'text-slate-300', icon, dot };
+}
+function makeLight(label:string, card:string, border:string, text:string, icon:React.ElementType, dot:string): StatusCfg {
+  return { label, card, border, text, numBg:'bg-black/[0.06]', numText:'text-gray-700', nameTxt:'text-gray-900', prodTxt:'text-gray-600', icon, dot };
+}
+
+const STATUS_DARK: Record<string, StatusCfg> = {
+  EM_PRODUCAO:          makeDark('Em Produção',   '#071a0e', 'border-green-500/50',  'text-green-400',   Play,        'bg-green-400'),
+  SETUP:                makeDark('Setup',          '#1c1400', 'border-amber-400/50',  'text-amber-300',   Settings,    'bg-amber-400'),
+  SETUP_DE_COR:         makeDark('Setup de Cor',   '#1c1400', 'border-amber-400/50',  'text-amber-300',   Droplets,    'bg-amber-400'),
+  REGULAGEM:            makeDark('Regulagem',      '#12091f', 'border-purple-500/50', 'text-purple-400',  Gauge,       'bg-purple-400'),
+  MANUTENCAO:           makeDark('Manutenção',     '#1c0808', 'border-red-500/50',    'text-red-400',     Wrench,      'bg-red-400'),
+  FERRAMENTARIA:        makeDark('Ferramentaria',  '#1c0808', 'border-red-500/50',    'text-red-400',     Wrench,      'bg-red-400'),
+  AGUARDANDO_MP:        makeDark('Aguard. MP',     '#1c1000', 'border-orange-400/50', 'text-orange-400',  Clock,       'bg-orange-400'),
+  AGUARDANDO_TECNICO:   makeDark('Aguard. Tec.',   '#1c1000', 'border-orange-400/50', 'text-orange-400',  Clock,       'bg-orange-400'),
+  AGUARDANDO_LIBERACAO: makeDark('Aguard. Lib.',   '#1c1000', 'border-orange-400/50', 'text-orange-400',  Clock,       'bg-orange-400'),
+  AGUARDANDO_ESTUFAGEM: makeDark('Aguard. Est.',   '#1c1000', 'border-orange-400/50', 'text-orange-400',  Clock,       'bg-orange-400'),
+  PARADA:               makeDark('Parada',         '#1f0606', 'border-red-600/50',    'text-red-400',     StopCircle,  'bg-red-500'),
+  INATIVA:              makeDark('Inativa',        '#0d1117', 'border-slate-500/40',  'text-slate-400',   Power,       'bg-slate-500'),
+  REINICIO:             makeDark('Reinício',       '#0f0a1c', 'border-purple-400/50', 'text-purple-400',  RotateCcw,   'bg-purple-400'),
+  TRYOUT:               makeDark('Tryout',         '#12091f', 'border-purple-500/50', 'text-purple-400',  Gauge,       'bg-purple-400'),
+  TROCA_DE_VERSAO:      makeDark('Troca Versão',   '#1c1400', 'border-amber-400/50',  'text-amber-300',   Settings,    'bg-amber-400'),
+  FORA_DA_COR_PADRAO:   makeDark('Fora Cor Padr.', '#1c1000', 'border-amber-500/50',  'text-amber-400',   AlertCircle, 'bg-amber-500'),
+  FALTA_DE_OPERADOR:    makeDark('Falta Operador', '#1f0610', 'border-rose-500/50',   'text-rose-400',    Clock,       'bg-rose-500'),
+  PARADA_PLANEJADA:     makeDark('Parada Plan.',   '#0d1117', 'border-slate-500/40',  'text-slate-400',   StopCircle,  'bg-slate-500'),
 };
 
-const STATUS_LIGHT: Record<string, { label:string; bg:string; icon:React.ElementType; dot:string }> = {
-  EM_PRODUCAO:          { label:'Em Produção',   bg:'bg-green-50 border-green-300 text-green-700',    icon:Play,        dot:'bg-green-500' },
-  SETUP:                { label:'Setup',          bg:'bg-amber-50 border-amber-300 text-amber-700',    icon:Settings,    dot:'bg-amber-400' },
-  SETUP_DE_COR:         { label:'Setup de Cor',   bg:'bg-amber-50 border-amber-300 text-amber-700',    icon:Droplets,    dot:'bg-amber-400' },
-  REGULAGEM:            { label:'Regulagem',      bg:'bg-purple-50 border-purple-300 text-purple-700', icon:Gauge,       dot:'bg-purple-500' },
-  MANUTENCAO:           { label:'Manutenção',     bg:'bg-red-50 border-red-300 text-red-700',          icon:Wrench,      dot:'bg-red-500' },
-  FERRAMENTARIA:        { label:'Ferramentaria',  bg:'bg-red-50 border-red-300 text-red-700',          icon:Wrench,      dot:'bg-red-500' },
-  AGUARDANDO_MP:        { label:'Aguard. MP',     bg:'bg-orange-50 border-orange-300 text-orange-700', icon:Clock,       dot:'bg-orange-400' },
-  AGUARDANDO_TECNICO:   { label:'Aguard. Tec.',   bg:'bg-orange-50 border-orange-300 text-orange-700', icon:Clock,       dot:'bg-orange-400' },
-  AGUARDANDO_LIBERACAO: { label:'Aguard. Lib.',   bg:'bg-orange-50 border-orange-300 text-orange-700', icon:Clock,       dot:'bg-orange-400' },
-  AGUARDANDO_ESTUFAGEM: { label:'Aguard. Est.',   bg:'bg-orange-50 border-orange-300 text-orange-700', icon:Clock,       dot:'bg-orange-400' },
-  PARADA:               { label:'Parada',         bg:'bg-red-50 border-red-400 text-red-700',          icon:StopCircle,  dot:'bg-red-600' },
-  INATIVA:              { label:'Inativa',        bg:'bg-slate-100 border-slate-300 text-slate-500',   icon:Power,       dot:'bg-slate-400' },
-  REINICIO:             { label:'Reinício',       bg:'bg-purple-50 border-purple-300 text-purple-700', icon:RotateCcw,   dot:'bg-purple-400' },
-  TRYOUT:               { label:'Tryout',         bg:'bg-purple-50 border-purple-300 text-purple-700', icon:Gauge,       dot:'bg-purple-400' },
-  TROCA_DE_VERSAO:      { label:'Troca Versão',   bg:'bg-amber-50 border-amber-300 text-amber-700',    icon:Settings,    dot:'bg-amber-400' },
-  FORA_DA_COR_PADRAO:   { label:'Fora Cor Padr.', bg:'bg-orange-50 border-orange-300 text-orange-700', icon:AlertCircle, dot:'bg-orange-500' },
+const STATUS_LIGHT: Record<string, StatusCfg> = {
+  EM_PRODUCAO:          makeLight('Em Produção',   '#dcfce7', 'border-green-400',     'text-green-800',   Play,        'bg-green-600'),
+  SETUP:                makeLight('Setup',          '#fef3c7', 'border-amber-400',     'text-amber-800',   Settings,    'bg-amber-600'),
+  SETUP_DE_COR:         makeLight('Setup de Cor',   '#fef3c7', 'border-amber-400',     'text-amber-800',   Droplets,    'bg-amber-600'),
+  REGULAGEM:            makeLight('Regulagem',      '#ede9fe', 'border-purple-400',    'text-purple-800',  Gauge,       'bg-purple-600'),
+  MANUTENCAO:           makeLight('Manutenção',     '#fee2e2', 'border-red-400',       'text-red-800',     Wrench,      'bg-red-600'),
+  FERRAMENTARIA:        makeLight('Ferramentaria',  '#fee2e2', 'border-red-400',       'text-red-800',     Wrench,      'bg-red-600'),
+  AGUARDANDO_MP:        makeLight('Aguard. MP',     '#ffedd5', 'border-orange-400',    'text-orange-800',  Clock,       'bg-orange-600'),
+  AGUARDANDO_TECNICO:   makeLight('Aguard. Tec.',   '#ffedd5', 'border-orange-400',    'text-orange-800',  Clock,       'bg-orange-600'),
+  AGUARDANDO_LIBERACAO: makeLight('Aguard. Lib.',   '#ffedd5', 'border-orange-400',    'text-orange-800',  Clock,       'bg-orange-600'),
+  AGUARDANDO_ESTUFAGEM: makeLight('Aguard. Est.',   '#ffedd5', 'border-orange-400',    'text-orange-800',  Clock,       'bg-orange-600'),
+  PARADA:               makeLight('Parada',         '#fecaca', 'border-red-500',       'text-red-900',     StopCircle,  'bg-red-700'),
+  INATIVA:              makeLight('Inativa',        '#e2e8f0', 'border-slate-400',     'text-slate-700',   Power,       'bg-slate-500'),
+  REINICIO:             makeLight('Reinício',       '#ede9fe', 'border-purple-300',    'text-purple-800',  RotateCcw,   'bg-purple-500'),
+  TRYOUT:               makeLight('Tryout',         '#f3e8ff', 'border-purple-400',    'text-purple-800',  Gauge,       'bg-purple-600'),
+  TROCA_DE_VERSAO:      makeLight('Troca Versão',   '#fef3c7', 'border-amber-400',     'text-amber-800',   Settings,    'bg-amber-600'),
+  FORA_DA_COR_PADRAO:   makeLight('Fora Cor Padr.', '#ffedd5', 'border-orange-400',    'text-orange-800',  AlertCircle, 'bg-orange-600'),
+  FALTA_DE_OPERADOR:    makeLight('Falta Operador', '#ffe4e6', 'border-rose-400',      'text-rose-800',    Clock,       'bg-rose-600'),
+  PARADA_PLANEJADA:     makeLight('Parada Plan.',   '#e2e8f0', 'border-slate-400',     'text-slate-700',   StopCircle,  'bg-slate-500'),
 };
 
-const FALLBACK_DARK = { label:'', bg:'bg-slate-500/20 border-slate-500/40 text-slate-400', icon:Clock, dot:'bg-slate-500' };
-const FALLBACK_LIGHT = { label:'', bg:'bg-slate-100 border-slate-300 text-slate-500',       icon:Clock, dot:'bg-slate-400' };
-
-// ── Config de cores do card TV (borda + texto, fundo sempre escuro) ──
-const TV_STATUS: Record<string, { label:string; border:string; text:string; icon:React.ElementType; dot:string }> = {
-  EM_PRODUCAO:          { label:'Em Produção',   border:'border-green-500/50',  text:'text-green-400',    icon:Play,        dot:'bg-green-400'   },
-  SETUP:                { label:'Setup',          border:'border-amber-400/50',  text:'text-amber-300',    icon:Settings,    dot:'bg-amber-400'   },
-  SETUP_DE_COR:         { label:'Setup de Cor',   border:'border-amber-400/50',  text:'text-amber-300',    icon:Droplets,    dot:'bg-amber-400'   },
-  REGULAGEM:            { label:'Regulagem',      border:'border-purple-500/50', text:'text-purple-400',   icon:Gauge,       dot:'bg-purple-400'  },
-  MANUTENCAO:           { label:'Manutenção',     border:'border-red-500/50',    text:'text-red-400',      icon:Wrench,      dot:'bg-red-400'     },
-  FERRAMENTARIA:        { label:'Ferramentaria',  border:'border-red-500/50',    text:'text-red-400',      icon:Wrench,      dot:'bg-red-400'     },
-  AGUARDANDO_MP:        { label:'Aguard. MP',     border:'border-orange-400/50', text:'text-orange-400',   icon:Clock,       dot:'bg-orange-400'  },
-  AGUARDANDO_TECNICO:   { label:'Aguard. Tec.',   border:'border-orange-400/50', text:'text-orange-400',   icon:Clock,       dot:'bg-orange-400'  },
-  AGUARDANDO_LIBERACAO: { label:'Aguard. Lib.',   border:'border-orange-400/50', text:'text-orange-400',   icon:Clock,       dot:'bg-orange-400'  },
-  AGUARDANDO_ESTUFAGEM: { label:'Aguard. Est.',   border:'border-orange-400/50', text:'text-orange-400',   icon:Clock,       dot:'bg-orange-400'  },
-  PARADA:               { label:'Parada',         border:'border-red-600/50',    text:'text-red-400',      icon:StopCircle,  dot:'bg-red-500'     },
-  INATIVA:              { label:'Inativa',        border:'border-slate-500/50',  text:'text-slate-400',    icon:Power,       dot:'bg-slate-500'   },
-  REINICIO:             { label:'Reinício',       border:'border-purple-400/50', text:'text-purple-400',   icon:RotateCcw,   dot:'bg-purple-400'  },
-  TRYOUT:               { label:'Tryout',         border:'border-purple-500/50', text:'text-purple-400',   icon:Gauge,       dot:'bg-purple-400'  },
-  TROCA_DE_VERSAO:      { label:'Troca Versão',   border:'border-amber-400/50',  text:'text-amber-300',    icon:Settings,    dot:'bg-amber-400'   },
-  FORA_DA_COR_PADRAO:   { label:'Fora Cor Padr.', border:'border-amber-500/50',  text:'text-amber-400',    icon:AlertCircle, dot:'bg-amber-500'   },
-  FALTA_DE_OPERADOR:    { label:'Falta Operador', border:'border-rose-500/50',   text:'text-rose-400',     icon:Clock,       dot:'bg-rose-500'    },
-  PARADA_PLANEJADA:     { label:'Parada Plan.',   border:'border-slate-500/50',  text:'text-slate-400',    icon:StopCircle,  dot:'bg-slate-500'   },
-};
-const TV_FALLBACK = { label:'', border:'border-white/10', text:'text-slate-400', icon:Clock, dot:'bg-slate-500' };
+const FALLBACK_DARK  = makeDark ('', '#0d1117', 'border-slate-500/40', 'text-slate-400', Clock, 'bg-slate-500');
+const FALLBACK_LIGHT = makeLight('', '#e2e8f0', 'border-slate-300',    'text-slate-600', Clock, 'bg-slate-400');
 
 // ── TV Machine Card ───────────────────────────
 function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }) {
-  void theme; // tema controla apenas fundo/header da página
-  const cfg  = TV_STATUS[snapshot.status] ?? { ...TV_FALLBACK, label: snapshot.status };
+  const map  = theme === 'dark' ? STATUS_DARK : STATUS_LIGHT;
+  const fall = theme === 'dark' ? FALLBACK_DARK : FALLBACK_LIGHT;
+  const cfg  = map[snapshot.status] ?? { ...fall, label: snapshot.status };
   const Icon = cfg.icon;
 
   const cycleOff =
@@ -205,35 +196,30 @@ function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }
     snapshot.produto?.cavidadepadrao != null &&
     snapshot.cavidadeReal < snapshot.produto.cavidadepadrao;
 
-  const numBg   = 'bg-black/25';
-  const numText = 'text-slate-300';
-  const prodTxt = 'text-slate-300';
-  const nameTxt = 'text-white';
-
   return (
     <div
       className={`rounded-2xl border p-4 flex flex-col gap-2.5 ${cfg.border} ${snapshot.divergente ? 'ring-2 ring-amber-400/60' : ''}`}
-      style={{ background: 'rgba(6,14,22,0.97)' }}
+      style={{ backgroundColor: cfg.card }}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
-          <span className={`font-bold text-base leading-none ${nameTxt}`}>{snapshot.maquina}</span>
+          <span className={`font-bold text-base leading-none ${cfg.nameTxt}`}>{snapshot.maquina}</span>
         </div>
         <Icon size={16} className="opacity-50" />
       </div>
 
       <span className={`text-[11px] font-bold uppercase tracking-wide opacity-90 leading-none ${cfg.text}`}>{cfg.label}</span>
 
-      <p className={`text-xs leading-tight line-clamp-1 font-medium ${prodTxt}`}>
+      <p className={`text-xs leading-tight line-clamp-1 font-medium ${cfg.prodTxt}`}>
         {snapshot.produtoNome || snapshot.produto?.descricao || '—'}
       </p>
 
       <div className="grid grid-cols-2 gap-1.5 mt-auto">
-        <div className={`${numBg} rounded-lg px-2 py-1.5 text-center`}>
+        <div className={`${cfg.numBg} rounded-lg px-2 py-1.5 text-center`}>
           <p className="text-[9px] text-slate-400 uppercase tracking-wide leading-none mb-0.5">Ciclo</p>
           <p className={`text-sm font-bold leading-none ${
-            cycleOff === null ? numText :
+            cycleOff === null ? cfg.numText :
             cycleOff > 5 ? 'text-red-500' :
             cycleOff < -5 ? 'text-blue-500' : 'text-green-500'
           }`}>
@@ -243,9 +229,9 @@ function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }
             )}
           </p>
         </div>
-        <div className={`${numBg} rounded-lg px-2 py-1.5 text-center`}>
+        <div className={`${cfg.numBg} rounded-lg px-2 py-1.5 text-center`}>
           <p className="text-[9px] text-slate-400 uppercase tracking-wide leading-none mb-0.5">Cavidade</p>
-          <p className={`text-sm font-bold leading-none ${cavityBad ? 'text-red-500' : numText}`}>
+          <p className={`text-sm font-bold leading-none ${cavityBad ? 'text-red-500' : cfg.numText}`}>
             {snapshot.cavidadeReal ?? '—'}
             {snapshot.produto?.cavidadepadrao ? (
               <span className="text-[10px] opacity-40">/{snapshot.produto.cavidadepadrao}</span>
