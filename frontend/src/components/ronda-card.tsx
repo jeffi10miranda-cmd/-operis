@@ -38,6 +38,8 @@ const FICHA_OPCOES = [
 interface Snapshot {
   maquina: string;
   status: string;
+  op?: string | null;
+  qtdOP?: number | null;
   produtoNome?: string | null;
   produto?: { descricao: string; ciclopadrao: number; cavidadepadrao: number } | null;
   cicloAtual?: number | null;
@@ -61,6 +63,8 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
 
   const [status,       setStatus]       = useState(s.status);
   const [produto,      setProduto]       = useState(s.produtoNome || s.produto?.descricao || '');
+  const [opNum,        setOpNum]         = useState(s.op || '');
+  const [qtdOpVal,     setQtdOpVal]      = useState(s.qtdOP != null ? String(s.qtdOP) : '');
   const [cicloReal,    setCicloReal]     = useState(s.cicloAtual != null ? String(s.cicloAtual) : '');
   const [cavReal,      setCavReal]       = useState(s.cavidadeReal != null ? String(s.cavidadeReal) : '');
   const [qtdAcum,      setQtdAcum]       = useState(s.qtdAtual != null ? String(s.qtdAtual) : '');
@@ -73,6 +77,8 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
   useEffect(() => {
     setStatus(s.status);
     setProduto(s.produtoNome || s.produto?.descricao || '');
+    setOpNum(s.op || '');
+    setQtdOpVal(s.qtdOP != null ? String(s.qtdOP) : '');
     setCicloReal(s.cicloAtual != null ? String(s.cicloAtual) : '');
     setCavReal(s.cavidadeReal != null ? String(s.cavidadeReal) : '');
     setQtdAcum(s.qtdAtual != null ? String(s.qtdAtual) : '');
@@ -95,8 +101,10 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
     try {
       await api.patch(`/snapshots/maquina/${s.maquina}`, {
         status,
-        qtdAtual:    qtdNum ?? undefined,
-        observacao:  ficha  || undefined,
+        op:          opNum      || undefined,
+        qtdOP:       qtdOpVal   ? Number(qtdOpVal.replace(/\./g, '').replace(',', '.'))   : undefined,
+        qtdAtual:    qtdNum     ?? undefined,
+        observacao:  ficha      || undefined,
       });
       setApontado(true);
       setTimeout(() => setApontado(false), 2000);
@@ -152,6 +160,30 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
               <option key={p.id} value={p.descricao}>{p.descricao}</option>
             ))}
           </select>
+        </div>
+
+        {/* OP e Qtd OP — editáveis */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Nº OP</p>
+            <input
+              type="text"
+              value={opNum}
+              onChange={e => setOpNum(e.target.value)}
+              placeholder="Ex: 34028"
+              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-400"
+            />
+          </div>
+          <div>
+            <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Qtd a realizar</p>
+            <input
+              type="text"
+              value={qtdOpVal}
+              onChange={e => setQtdOpVal(e.target.value)}
+              placeholder="Total"
+              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-400"
+            />
+          </div>
         </div>
 
         {/* Ciclo e Cavidade — editáveis */}

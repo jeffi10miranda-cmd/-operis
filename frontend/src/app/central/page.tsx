@@ -59,6 +59,8 @@ function snapshotToCard(s: Snapshot) {
     name: s.maquina,
     product: s.produtoNome || s.produto?.descricao || '—',
     status: s.status,
+    op: (s as any).op ?? null,
+    qtdOP: (s as any).qtdOP ?? null,
     cycleCurrent: s.cicloAtual,
     cycleTarget: s.produto?.ciclopadrao ?? null,
     cavityCurrent: s.cavidadeReal,

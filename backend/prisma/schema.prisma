@@ -111,6 +111,8 @@ model SnapshotTurno {
   cavidadeReal    Int?
   velocidade      Float?
   status          StatusOperacional
+  op              String?
+  qtdOP           Int?
   observacao      String?
   qtdAtual        Int?
   divergente      Boolean           @default(false)

@@ -1,0 +1,2 @@
+ALTER TABLE "snapshots_turnos" ADD COLUMN IF NOT EXISTS "op" TEXT;
+ALTER TABLE "snapshots_turnos" ADD COLUMN IF NOT EXISTS "qtdOP" INTEGER;

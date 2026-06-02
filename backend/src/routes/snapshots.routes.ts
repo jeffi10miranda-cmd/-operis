@@ -100,7 +100,7 @@ snapshotsRouter.get('/maquina/:id', async (req, res, next) => {
 // PATCH /api/snapshots/maquina/:maquina — override manual de status/qtd
 snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
   try {
-    const { status, qtdAtual, observacao, liberarSync } = req.body;
+    const { status, op, qtdOP, qtdAtual, observacao, liberarSync } = req.body;
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
@@ -117,8 +117,10 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
       where: { id: snapshot.id },
       data: {
         ...(status     !== undefined ? { status: status as StatusOperacional } : {}),
-        ...(qtdAtual   !== undefined ? { qtdAtual: Number(qtdAtual) } : {}),
-        ...(observacao !== undefined ? { observacao } : {}),
+        ...(op         !== undefined ? { op }                                 : {}),
+        ...(qtdOP      !== undefined ? { qtdOP: Number(qtdOP) }               : {}),
+        ...(qtdAtual   !== undefined ? { qtdAtual: Number(qtdAtual) }         : {}),
+        ...(observacao !== undefined ? { observacao }                          : {}),
         manualOverride: liberarSync ? false : true,
       },
     });

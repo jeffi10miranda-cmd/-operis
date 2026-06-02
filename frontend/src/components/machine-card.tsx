@@ -14,6 +14,8 @@ interface MachineCardProps {
   name: string;
   product: string;
   status: string;
+  op?: string | null;
+  qtdOP?: number | null;
   cycleCurrent?: number | null;
   cycleTarget?: number | null;
   cavityCurrent?: number | null;
@@ -79,6 +81,7 @@ function FichaTecnicaToggle({ value, onChange }: { value: string; onChange: (v: 
 
 export function MachineCard({
   maquina, name, product, status,
+  op, qtdOP,
   cycleCurrent, cycleTarget,
   cavityCurrent, cavityTarget,
   qtdAtual: qtdAtualProp,
@@ -192,10 +195,28 @@ export function MachineCard({
       </span>
 
       {/* Product */}
-      <div className="mb-3">
+      <div className="mb-2">
         <p className="text-[10px] text-gray-400 uppercase tracking-wide">Produto</p>
         <p className="machine-product font-semibold text-gray-800 text-sm mt-0.5">{product || '—'}</p>
       </div>
+
+      {/* OP + Qtd OP */}
+      {(op || qtdOP != null) && (
+        <div className="flex gap-3 mb-2">
+          {op && (
+            <div>
+              <p className="text-[9px] text-gray-400 uppercase tracking-wide">OP</p>
+              <p className="text-xs font-bold text-operis-dark">{op}</p>
+            </div>
+          )}
+          {qtdOP != null && (
+            <div>
+              <p className="text-[9px] text-gray-400 uppercase tracking-wide">Qtd OP</p>
+              <p className="text-xs font-bold text-operis-dark">{qtdOP.toLocaleString('pt-BR')}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-1 text-center mb-2">

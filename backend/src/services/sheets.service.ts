@@ -9,7 +9,9 @@ import { logger } from '../config/logger';
 
 export interface SheetRow {
   maquina:      string;
+  op:           string;
   produto:      string;
+  qtdOP:        number | null;
   qtdAtual:     number | null;
   cicloAtual:   number | null;
   cavidadeReal: number | null;
@@ -156,8 +158,10 @@ export async function lerPlanilha(
       })
       .map((row): SheetRow => ({
         maquina:      normalizeStr(row[0]),              // 0 = Maq
-        produto:      normalizeStr(row[2] || row[1]),    // 2 = Descrição, fallback 1 = Op
-        qtdAtual:     parseNum(row[4]),                  // 4 = Qtd Atual
+        op:           normalizeStr(row[1] || ''),        // 1 = Op (nº da OP)
+        produto:      normalizeStr(row[2] || ''),        // 2 = Descrição
+        qtdOP:        parseNum(row[3]),                  // 3 = Qtd Op (meta)
+        qtdAtual:     parseNum(row[4]),                  // 4 = Qtd Atual (acumulado)
         cicloAtual:   parseNum(row[5]),                  // 5 = Ciclo
         cavidadeReal: parseNum(row[7]),                  // 7 = Cav
         velocidade:   parseNum(row[6]),                  // 6 = C Real
