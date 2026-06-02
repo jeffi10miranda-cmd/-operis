@@ -24,16 +24,67 @@ const kpiMetrics = [
 
 const sparkData = Array.from({ length: 12 }, (_, i) => ({ v: 40 + Math.sin(i * 0.8) * 12 + Math.random() * 6 }));
 
-const mainTableData = [
-  { maquina:'MÁQ 01', produto:'Frasco reto 12', cicloAnt:'50s', cicloAt:'55s', deltaCiclo:'+5s (10%)',   cavAnt:24, cavAt:24, deltaCav:'-',  prodAnt:2450, prodAt:2680, deltaProd:'+9,4%', status:'Ciclo aumentou', statusType:'danger' },
-  { maquina:'MÁQ 02', produto:'Tampa Kelly - Preto', cicloAnt:'20s', cicloAt:'20s', deltaCiclo:'-',    cavAnt:16, cavAt:16, deltaCav:'-',  prodAnt:1920, prodAt:1980, deltaProd:'+3,1%', status:'Estável',        statusType:'ok' },
-  { maquina:'MÁQ 03', produto:'Haste 48 mm',    cicloAnt:'30s', cicloAt:'33s', deltaCiclo:'+3s (10%)',   cavAnt:28, cavAt:32, deltaCav:'+4', prodAnt:2100, prodAt:2050, deltaProd:'-2,4%', status:'Cavidade alterada',statusType:'warning' },
-  { maquina:'MÁQ 04', produto:'Frasco reto 05', cicloAnt:'24s', cicloAt:'24s', deltaCiclo:'-',           cavAnt:'-', cavAt:'-',deltaCav:'-',  prodAnt:0,    prodAt:0,    deltaProd:'-',     status:'Máquina parada', statusType:'stopped' },
-  { maquina:'MÁQ 05', produto:'Peneira - Rosa', cicloAnt:'22s', cicloAt:'25s', deltaCiclo:'+3s (13,6%)', cavAnt:16, cavAt:16, deltaCav:'-',  prodAnt:1650, prodAt:1520, deltaProd:'-7,9%', status:'Ciclo aumentou', statusType:'danger' },
-  { maquina:'MÁQ 06', produto:'POTE 500g',      cicloAnt:'24s', cicloAt:'24s', deltaCiclo:'-',           cavAnt:16, cavAt:16, deltaCav:'-',  prodAnt:2300, prodAt:2450, deltaProd:'+6,5%', status:'Estável',        statusType:'ok' },
-  { maquina:'MÁQ 07', produto:'TAMPA 38mm',     cicloAnt:'24s', cicloAt:'26s', deltaCiclo:'+2s (8,3%)',  cavAnt:16, cavAt:16, deltaCav:'-',  prodAnt:1800, prodAt:1880, deltaProd:'+4,4%', status:'Ciclo aumentou', statusType:'warning' },
-  { maquina:'MÁQ 08', produto:'GARRAFA PET',    cicloAnt:'20s', cicloAt:'20s', deltaCiclo:'-',           cavAnt:32, cavAt:32, deltaCav:'-',  prodAnt:2230, prodAt:1890, deltaProd:'-15,2%',status:'Queda produção', statusType:'danger' },
+// Produtos e padrões para gerar 30 máquinas mock
+const MOCK_LINHAS = [
+  { produto:'Frasco reto 12',       ciclo:50, cav:24, status:'danger',  label:'Ciclo aumentou'   },
+  { produto:'Tampa Kelly - Preto',  ciclo:20, cav:16, status:'ok',      label:'Estável'          },
+  { produto:'Haste 48 mm',          ciclo:30, cav:32, status:'warning', label:'Cavidade alterada'},
+  { produto:'Frasco reto 05',       ciclo:24, cav:0,  status:'stopped', label:'Máquina parada'   },
+  { produto:'Peneira - Rosa',       ciclo:22, cav:16, status:'danger',  label:'Ciclo aumentou'   },
+  { produto:'POTE 500g',            ciclo:24, cav:16, status:'ok',      label:'Estável'          },
+  { produto:'TAMPA 38mm',           ciclo:24, cav:16, status:'warning', label:'Ciclo aumentou'   },
+  { produto:'Garrafa PET',          ciclo:20, cav:32, status:'danger',  label:'Queda produção'   },
+  { produto:'Haste 55mm - Preto',   ciclo:30, cav:32, status:'ok',      label:'Estável'          },
+  { produto:'Tampa Novo Toque',     ciclo:23, cav:32, status:'ok',      label:'Estável'          },
+  { produto:'Frasco Reto 05 Mag.',  ciclo:55, cav:24, status:'warning', label:'Ciclo aumentou'   },
+  { produto:'Corpo Stick XL Bege',  ciclo:25, cav:16, status:'ok',      label:'Estável'          },
+  { produto:'Tampa Emilly - Rosa',  ciclo:20, cav:8,  status:'warning', label:'Cavidade baixa'   },
+  { produto:'Trava Peneira C/R D',  ciclo:20, cav:16, status:'ok',      label:'Estável'          },
+  { produto:'Caneca Stick XL',      ciclo:20, cav:32, status:'danger',  label:'Ciclo aumentou'   },
+  { produto:'Haste 48mm Redonda',   ciclo:30, cav:128,status:'ok',      label:'Estável'          },
+  { produto:'Frasco reto 03',       ciclo:55, cav:24, status:'ok',      label:'Estável'          },
+  { produto:'Frasco Reto 05 Mag',   ciclo:55, cav:24, status:'ok',      label:'Estável'          },
+  { produto:'Frasco 05 Abaulado',   ciclo:50, cav:16, status:'ok',      label:'Estável'          },
+  { produto:'Haste 48 mm',          ciclo:30, cav:32, status:'ok',      label:'Estável'          },
+  { produto:'Pote 500ml',           ciclo:50, cav:16, status:'warning', label:'Queda produção'   },
+  { produto:'Frasco reto 10 6ML',   ciclo:25, cav:16, status:'ok',      label:'Estável'          },
+  { produto:'Tampa Verónica Preto', ciclo:34, cav:32, status:'warning', label:'Ciclo aumentou'   },
+  { produto:'Haste 67mm c/adapt.',  ciclo:35, cav:32, status:'ok',      label:'Estável'          },
+  { produto:'Batoque BL 03 Preto',  ciclo:30, cav:128,status:'ok',      label:'Estável'          },
+  { produto:'Reinício',             ciclo:18, cav:16, status:'stopped', label:'Máquina parada'   },
+  { produto:'Tampa Impala Branco',  ciclo:16, cav:24, status:'ok',      label:'Estável'          },
+  { produto:'Tampa Amanda Salmão',  ciclo:14, cav:32, status:'ok',      label:'Estável'          },
+  { produto:'Tampa Impala Branco',  ciclo:16, cav:24, status:'warning', label:'Ciclo aumentou'   },
+  { produto:'Tampa Stick XL Mar.',  ciclo:30, cav:32, status:'ok',      label:'Estável'          },
 ];
+
+function deltaStr(ant: number, at: number) {
+  if (ant === 0 && at === 0) return '-';
+  const pct = ant > 0 ? ((at - ant) / ant * 100).toFixed(1).replace('.', ',') : '0';
+  return `${at > ant ? '+' : ''}${pct}%`;
+}
+
+const mainTableData = MOCK_LINHAS.map((l, i) => {
+  const num   = String(i + 1).padStart(2, '0');
+  const dCiclo = l.status === 'stopped' ? 0 : Math.round(l.ciclo * (1 + (i % 3 === 0 ? 0.1 : i % 3 === 1 ? -0.05 : 0)));
+  const prodA  = l.status === 'stopped' ? 0 : 1500 + (i * 73) % 1200;
+  const prodB  = l.status === 'stopped' ? 0 : Math.round(prodA * (1 + (i % 5 === 0 ? 0.09 : i % 5 === 1 ? 0.03 : i % 5 === 2 ? -0.08 : i % 5 === 3 ? 0.06 : -0.15)));
+  return {
+    maquina:    `MÁQ ${num}`,
+    produto:    l.produto,
+    cicloAnt:   `${l.ciclo}s`,
+    cicloAt:    `${dCiclo}s`,
+    deltaCiclo: dCiclo !== l.ciclo ? `+${dCiclo - l.ciclo}s` : '-',
+    cavAnt:     l.cav > 0 ? l.cav : '-',
+    cavAt:      l.cav > 0 ? l.cav : '-',
+    deltaCav:   '-',
+    prodAnt:    prodA,
+    prodAt:     prodB,
+    deltaProd:  l.status === 'stopped' ? '-' : deltaStr(prodA, prodB),
+    status:     l.label,
+    statusType: l.status,
+  };
+});
 
 const barData = [
   { turno:'1º Turno', anterior:5200, atual:4800 },
