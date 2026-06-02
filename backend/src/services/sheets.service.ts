@@ -80,6 +80,10 @@ async function descobrirAbaHoje(spreadsheetId: string, prefixoTurno: string): Pr
     const abas   = meta.data.sheets?.map(s => s.properties?.title ?? '') ?? [];
     const hoje   = formatarDataAba(new Date());
 
+    // Log para debug: mostra abas disponíveis
+    logger.info(`Abas disponíveis na planilha: ${abas.map(a => `"${a}"`).join(', ')}`);
+    logger.info(`Procurando prefixo: "${prefixoTurno}" | Data hoje: "${hoje}"`);
+
     // Tenta encontrar aba exata do dia (ex: "1º T 02-06-26")
     const abaHoje = abas.find(a => a.startsWith(prefixoTurno) && a.includes(hoje));
     if (abaHoje) return abaHoje;
