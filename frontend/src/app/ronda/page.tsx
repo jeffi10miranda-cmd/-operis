@@ -732,7 +732,8 @@ const APONTAMENTO_VAZIO: Apontamento = {
   op: '', qtdOP: '', qtdAcumulada: '',
 };
 
-function getValidacao(ap: Apontamento) {
+function getValidacao(ap: Apontamento | undefined) {
+  if (!ap) return null;
   const prod = MOCK_PRODUTOS.find(p => p.descricao === ap.produto);
   if (!prod || !ap.cicloReal || !ap.cavidadeReal || !ap.status) return null;
 
@@ -745,7 +746,8 @@ function getValidacao(ap: Apontamento) {
   return { prod, ciclo, cav, deltaCiclo, cicloOk, cavOk, ok: cicloOk && cavOk };
 }
 
-function isPreenchido(ap: Apontamento) {
+function isPreenchido(ap: Apontamento | undefined) {
+  if (!ap) return false;
   return ap.produto !== '' && ap.cicloReal !== '' && ap.cavidadeReal !== '' && ap.status !== '';
 }
 
