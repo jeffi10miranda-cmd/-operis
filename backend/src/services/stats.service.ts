@@ -1,4 +1,4 @@
-// OPERIS — Serviço de estatísticas históricas para TV/Comparativo
+// OPERIS — Servico de estatisticas historicas para TV/Comparativo
 
 import { prisma } from '../config/database';
 
@@ -14,13 +14,17 @@ function parseDate(str?: string): Date {
   return dateOnly(new Date());
 }
 
+function nextDay(d: Date): Date {
+  return new Date(d.getTime() + 86_400_000);
+}
+
 const TURNO_LABEL: Record<string, string> = {
   PRIMEIRO: '1º Turno',
   SEGUNDO:  '2º Turno',
   TERCEIRO: '3º Turno',
 };
 
-// ── Produção por turno (hoje vs ontem) ─────────
+// Producao por turno (hoje vs ontem)
 export async function producaoPorTurno(dataStr?: string) {
   const hoje  = parseDate(dataStr);
   const ontem = new Date(hoje.getTime() - 86_400_000);
@@ -28,15 +32,13 @@ export async function producaoPorTurno(dataStr?: string) {
   const [snapHoje, snapOntem] = await Promise.all([
     prisma.snapshotTurno.groupBy({
       by: ['turno'],
-      where: { data: hoje, qtdAtual: { not: null } },
+      where: { data: hoje },
       _sum: { qtdAtual: true },
-      orderBy: { turno: 'asc' },
     }),
     prisma.snapshotTurno.groupBy({
       by: ['turno'],
-      where: { data: ontem, qtdAtual: { not: null } },
+      where: { data: ontem },
       _sum: { qtdAtual: true },
-      orderBy: { turno: 'asc' },
     }),
   ]);
 
@@ -44,61 +46,47 @@ export async function producaoPorTurno(dataStr?: string) {
     snapOntem.map(s => [s.turno, s._sum.qtdAtual ?? 0]),
   );
 
-  const turnos = ['PRIMEIRO', 'SEGUNDO', 'TERCEIRO'];
-  return turnos.map(t => ({
+  return ['PRIMEIRO', 'SEGUNDO', 'TERCEIRO'].map(t => ({
     turno:  TURNO_LABEL[t] ?? t,
     hoje:   snapHoje.find(s => s.turno === t)?._sum.qtdAtual ?? 0,
     ontem:  mapaOntem[t] ?? 0,
   }));
 }
 
-// ── Evolução do ciclo médio por hora (hoje vs ontem) ──
+// Evolucao do ciclo medio por hora (hoje vs ontem)
 export async function cicloEvolucao(dataStr?: string) {
-  const hoje  = parseDate(dataStr);
-  const ontem = new Date(hoje.getTime() - 86_400_000);
-
-  const amanhã = new Date(hoje.getTime() + 86_400_000);
-  const depoisDeOntem = new Date(ontem.getTime() + 86_400_000);
+  const hoje   = parseDate(dataStr);
+  const ontem  = new Date(hoje.getTime() - 86_400_000);
+  const fimHoje  = nextDay(hoje);
+  const fimOntem = nextDay(ontem);
 
   const [snapHoje, snapOntem] = await Promise.all([
     prisma.snapshotTurno.findMany({
-      where: {
-        capturadoEm: { gte: hoje, lt: amanhã },
-        cicloAtual:  { not: null, gt: 0 },
-      },
+      where: { capturadoEm: { gte: hoje, lt: fimHoje }, cicloAtual: { gt: 0 } },
       select: { cicloAtual: true, capturadoEm: true },
     }),
     prisma.snapshotTurno.findMany({
-      where: {
-        capturadoEm: { gte: ontem, lt: depoisDeOntem },
-        cicloAtual:  { not: null, gt: 0 },
-      },
+      where: { capturadoEm: { gte: ontem, lt: fimOntem }, cicloAtual: { gt: 0 } },
       select: { cicloAtual: true, capturadoEm: true },
     }),
   ]);
 
-  function agruparPorHora(snaps: { cicloAtual: number | null; capturadoEm: Date }[]) {
-    const grupos: Record<number, number[]> = {};
+  function agrupar(snaps: { cicloAtual: number | null; capturadoEm: Date }[]) {
+    const g: Record<number, number[]> = {};
     for (const s of snaps) {
       if (!s.cicloAtual) continue;
       const h = s.capturadoEm.getUTCHours();
-      if (!grupos[h]) grupos[h] = [];
-      grupos[h].push(s.cicloAtual);
+      (g[h] = g[h] ?? []).push(s.cicloAtual);
     }
-    return grupos;
+    return g;
   }
 
-  const gruposHoje  = agruparPorHora(snapHoje);
-  const gruposOntem = agruparPorHora(snapOntem);
+  const gHoje  = agrupar(snapHoje);
+  const gOntem = agrupar(snapOntem);
 
-  const horas = Array.from({ length: 24 }, (_, i) => i);
-  const resultado = horas
-    .map(h => {
-      const avgHoje  = gruposHoje[h]  ? Math.round(gruposHoje[h].reduce((a,b)=>a+b,0)  / gruposHoje[h].length)  : null;
-      const avgOntem = gruposOntem[h] ? Math.round(gruposOntem[h].reduce((a,b)=>a+b,0) / gruposOntem[h].length) : null;
-      return { t: `${String(h).padStart(2,'0')}h`, hoje: avgHoje, ontem: avgOntem };
-    })
-    .filter(r => r.hoje !== null || r.ontem !== null);
-
-  return resultado;
+  return Array.from({ length: 24 }, (_, h) => {
+    const avgH = gHoje[h]  ? Math.round(gHoje[h].reduce((a,b)=>a+b,0)  / gHoje[h].length)  : null;
+    const avgO = gOntem[h] ? Math.round(gOntem[h].reduce((a,b)=>a+b,0) / gOntem[h].length) : null;
+    return { t: `${String(h).padStart(2,'0')}h`, hoje: avgH, ontem: avgO };
+  }).filter(r => r.hoje !== null || r.ontem !== null);
 }

@@ -771,28 +771,47 @@ function TabApontar() {
   const snapshots = (snapshotsRaw as any[]) ?? [];
   const produtosReais = (produtosRaw as any[]) ?? MOCK_PRODUTOS;
 
-  // Pre-popula o formulário com os dados do snapshot
+  // Retorna snapshot real ou snapshot vazio para apontamento manual
+  function getSnapOrDefault(maq: string) {
+    return snapshots.find((s: any) => s.maquina === maq) ?? {
+      maquina: maq, status: 'INATIVA',
+      op: null, qtdOP: null, produtoNome: null, produto: null,
+      cicloAtual: null, cavidadeReal: null, qtdAtual: null,
+      observacao: null, divergente: false,
+    };
+  }
+
+  // Pre-popula o formulário com dados do snapshot quando disponível
   useEffect(() => {
-    if (!snapshots.length) return;
-    const novoApts: Record<string, Apontamento> = {};
-    for (const s of snapshots) {
-      novoApts[s.maquina] = {
-        produto:      s.produtoNome || s.produto?.descricao || '',
-        op:           '',
-        qtdOP:        '',
-        qtdAcumulada: s.qtdAtual != null ? String(s.qtdAtual) : '',
-        cicloReal:    s.cicloAtual != null ? String(s.cicloAtual) : '',
-        cavidadeReal: s.cavidadeReal != null ? String(s.cavidadeReal) : '',
-        status:       s.status || '',
-        observacao:   s.observacao || '',
-      };
-    }
-    setApts(novoApts);
+    setApts(prev => {
+      const novoApts: Record<string, Apontamento> = { ...prev };
+      for (const s of snapshots) {
+        if (!novoApts[s.maquina] || !isPreenchido(novoApts[s.maquina])) {
+          novoApts[s.maquina] = {
+            produto:      s.produtoNome || s.produto?.descricao || '',
+            op:           s.op || '',
+            qtdOP:        s.qtdOP != null ? String(s.qtdOP) : '',
+            qtdAcumulada: s.qtdAtual != null ? String(s.qtdAtual) : '',
+            cicloReal:    s.cicloAtual != null ? String(s.cicloAtual) : '',
+            cavidadeReal: s.cavidadeReal != null ? String(s.cavidadeReal) : '',
+            status:       s.status || '',
+            observacao:   s.observacao || '',
+          };
+        }
+      }
+      return novoApts;
+    });
   }, [snapshotsRaw, turno]);
 
-  const maquinas = useMemo(() => snapshots.map((s: any) => s.maquina).sort((a: string, b: string) =>
-    Number(a) - Number(b)
-  ), [snapshots]);
+  // Usa snapshots da API ou lista estática como fallback para apontamento manual
+  const maquinas = useMemo(() => {
+    if (snapshots.length > 0) {
+      return [...snapshots.map((s: any) => s.maquina)].sort(
+        (a, b) => Number(a.replace(/\D/g, '')) - Number(b.replace(/\D/g, ''))
+      );
+    }
+    return MACHINES;
+  }, [snapshots]);
 
   function setField(maq: string, field: keyof Apontamento, value: string) {
     setApts(prev => ({ ...prev, [maq]: { ...prev[maq], [field]: value } }));
@@ -975,23 +994,24 @@ function TabApontar() {
       {/* Grid de RondaCards */}
       {loadingSnaps ? (
         <div className='py-12 text-center text-gray-400 text-sm'>Carregando dados do turno...</div>
-      ) : snapshots.length === 0 ? (
-        <div className='card py-12 text-center text-gray-400 text-sm'>Nenhum dado sincronizado para este turno.</div>
       ) : (
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3'>
-          {maquinasFiltradas.map((maq: string) => {
-            const snap = snapshots.find((s: any) => s.maquina === maq);
-            if (!snap) return null;
-            return (
+        <>
+          {snapshots.length === 0 && (
+            <div className='text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2'>
+              Sem sincronização do Google Sheets para este turno — preencha manualmente abaixo.
+            </div>
+          )}
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3'>
+            {maquinasFiltradas.map((maq: string) => (
               <RondaCard
                 key={maq}
-                snapshot={snap}
+                snapshot={getSnapOrDefault(maq)}
                 produtos={produtosReais}
                 onApontado={() => {}}
               />
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
