@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useComparativoDias, useComparativoTurnos } from '@/lib/api';
 import {
   TrendingUp, TrendingDown, Minus, AlertTriangle, ArrowRight,
@@ -123,12 +123,14 @@ export default function ComparativosPage() {
   );
 
   const tableRows = useMemo(() => {
-    setPage(1);
     if (isDias && Array.isArray(diasData) && diasData.length > 0) {
       return (diasData as ComparativoApiRow[]).map(mapComparativoRow);
     }
     return mainTableData;
   }, [isDias, diasData]);
+
+  // Resetar página quando os dados ou tipo mudam
+  useEffect(() => { setPage(1); }, [isDias, diasData, tipoAnalise]);
 
   const apiLoading = (isDias && diasLoading) || (isTurnos && turnosLoading);
   const apiError = diasError || turnosError;
