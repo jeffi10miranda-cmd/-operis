@@ -218,6 +218,10 @@ function normalizeStr(val: unknown): string {
 }
 
 function parseNum(val: unknown): number | null {
-  const n = parseFloat(String(val ?? '').replace(',', '.'));
+  const s = String(val ?? '').trim();
+  if (!s || s === '-') return null;
+  // Formato pt-BR: "75.500" = 75500 (ponto = milhar), "47,3" = 47.3 (vírgula = decimal)
+  const normalized = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(normalized);
   return isNaN(n) ? null : n;
 }
