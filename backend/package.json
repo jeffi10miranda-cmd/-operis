@@ -2,12 +2,12 @@
   "name": "operis-backend",
   "version": "1.0.0",
   "description": "OPERIS — Backend industrial Node.js",
-  "main": "dist/server.js",
+  "main": "src/server.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "setup": "prisma generate && prisma migrate deploy && npm run db:seed",
-    "build": "prisma generate && npx tsc",
-    "start": "node dist/server.js",
+    "build": "prisma generate",
+    "start": "tsx src/server.ts",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "tsx src/prisma/seed.ts",
@@ -17,7 +17,7 @@
   "dependencies": {
     "@prisma/client": "^5.10.0",
     "prisma": "^5.10.0",
-    "typescript": "^5.3.3",
+    "tsx": "^4.7.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.4",
@@ -38,6 +38,6 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.11.24",
     "@types/node-cron": "^3.0.11",
-    "tsx": "^4.7.1"
+    "typescript": "^5.3.3"
   }
 }

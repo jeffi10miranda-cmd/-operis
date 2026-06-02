@@ -192,7 +192,11 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
         {/* Footer */}
         <div className="px-3 pb-5 border-t border-white/10 pt-3 flex items-center justify-between">
           <span className="text-slate-500 text-[10px]">OPERIS v1.0.0</span>
-          <button className="text-slate-400 hover:text-white transition-colors">
+          <button
+            onClick={() => { if (window.confirm('Deseja sair da sua conta?')) logout(); }}
+            title="Sair"
+            className="text-slate-400 hover:text-white transition-colors"
+          >
             <LogOut size={16} />
           </button>
         </div>
@@ -375,7 +379,7 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
                       Meu perfil
                     </Link>
                     <button
-                      onClick={() => { setUserMenuOpen(false); logout(); }}
+                      onClick={() => { if (window.confirm('Deseja sair da sua conta?')) { setUserMenuOpen(false); logout(); } }}
                       className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
                     >
                       <LogOut size={15} />
