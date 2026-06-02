@@ -244,24 +244,37 @@ function TvMachineCard({ snapshot, theme }: { snapshot: Snapshot; theme: Theme }
 }
 
 // ── TV Comparativo — apenas gráficos ─────────
-function TvComparativo({ theme }: { theme: Theme }) {
+function TvComparativo({ theme, kpis }: { theme: Theme; kpis: KPIsData }) {
   const tk = T[theme];
+  const total = kpis.total || 1;
+
+  const statusStrip = [
+    { label:'Em produção', value: kpis.emProducao,  color:'text-green-500',  pct: Math.round(kpis.emProducao  / total * 100) },
+    { label:'Setup',       value: kpis.setup,       color:'text-amber-500',  pct: Math.round(kpis.setup       / total * 100) },
+    { label:'Regulagem',   value: kpis.regulagem,   color:'text-purple-500', pct: Math.round(kpis.regulagem   / total * 100) },
+    { label:'Aguardando',  value: kpis.aguardando,  color:'text-orange-500', pct: Math.round(kpis.aguardando  / total * 100) },
+    { label:'Paradas',     value: kpis.paradas,     color:'text-red-500',    pct: Math.round(kpis.paradas     / total * 100) },
+    { label:'Inativas',    value: kpis.inativas,    color:'text-slate-400',  pct: Math.round(kpis.inativas    / total * 100) },
+  ];
+
+  const pieDataReal = [
+    { name:'Em produção', value: kpis.emProducao,  color:'#22c55e' },
+    { name:'Setup',       value: kpis.setup,       color:'#f59e0b' },
+    { name:'Regulagem',   value: kpis.regulagem,   color:'#a855f7' },
+    { name:'Aguardando',  value: kpis.aguardando,  color:'#f97316' },
+    { name:'Paradas',     value: kpis.paradas,     color:'#ef4444' },
+    { name:'Inativas',    value: kpis.inativas,    color:'#94a3b8' },
+  ].filter(d => d.value > 0);
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      {/* KPI strip */}
+      {/* KPI strip — dados reais */}
       <div className="grid grid-cols-6 gap-3 flex-shrink-0">
-        {COMP_KPI.map((k) => (
+        {statusStrip.map((k) => (
           <div key={k.label} className={`rounded-2xl border ${tk.cardBorder} px-4 py-3 flex flex-col gap-1`} style={tk.card}>
             <p className={`text-[10px] uppercase tracking-widest leading-none ${tk.textMuted}`}>{k.label}</p>
-            <p className={`text-xl font-bold tabular-nums leading-none ${tk.textPrimary}`}>{k.value}</p>
-            <div className="flex items-center gap-1">
-              {k.up
-                ? <TrendingUp  size={11} className="text-red-500 flex-shrink-0" />
-                : <TrendingDown size={11} className="text-green-500 flex-shrink-0" />}
-              <span className={`text-[11px] font-semibold ${k.up ? 'text-red-500' : 'text-green-500'}`}>{k.delta}</span>
-              <span className={`text-[10px] ml-0.5 ${tk.textMuted}`}>vs. ant.</span>
-            </div>
+            <p className={`text-3xl font-bold tabular-nums leading-none ${k.color}`}>{k.value}</p>
+            <p className={`text-[11px] font-semibold ${tk.textMuted}`}>{k.pct}% do total</p>
           </div>
         ))}
       </div>
@@ -321,25 +334,25 @@ function TvComparativo({ theme }: { theme: Theme }) {
           </div>
         </div>
 
-        {/* Donut — Distribuição de status */}
+        {/* Donut — Distribuição real de status */}
         <div className={`rounded-2xl border ${tk.cardBorder} p-5 flex flex-col`} style={tk.card}>
           <p className={`text-sm font-bold mb-4 ${tk.textPrimary}`}>Distribuição de status</p>
           <div className="flex items-center gap-4 flex-1 min-h-0">
             <div className="relative flex-shrink-0" style={{ width:160, height:160 }}>
               <ResponsiveContainer width={160} height={160}>
                 <PieChart>
-                  <Pie data={PIE_DATA} cx="50%" cy="50%" innerRadius={48} outerRadius={72} dataKey="value" startAngle={90} endAngle={-270}>
-                    {PIE_DATA.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  <Pie data={pieDataReal} cx="50%" cy="50%" innerRadius={48} outerRadius={72} dataKey="value" startAngle={90} endAngle={-270}>
+                    {pieDataReal.map((e, i) => <Cell key={i} fill={e.color} />)}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className={`text-2xl font-black ${tk.textPrimary}`}>30</span>
+                <span className={`text-2xl font-black ${tk.textPrimary}`}>{kpis.total}</span>
                 <span className={`text-[10px] ${tk.textMuted}`}>Máquinas</span>
               </div>
             </div>
             <div className="flex flex-col gap-2.5 flex-1">
-              {PIE_DATA.map((d) => (
+              {pieDataReal.map((d) => (
                 <div key={d.name} className="flex items-center justify-between">
                   <span className={`flex items-center gap-2 text-xs ${tk.textSecondary}`}>
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
@@ -348,7 +361,7 @@ function TvComparativo({ theme }: { theme: Theme }) {
                   <span className={`text-sm font-bold tabular-nums ${tk.textPrimary}`}>
                     {d.value}
                     <span className={`text-[10px] font-normal ml-1 ${tk.textMuted}`}>
-                      ({Math.round(d.value / 30 * 100)}%)
+                      ({Math.round(d.value / total * 100)}%)
                     </span>
                   </span>
                 </div>
@@ -622,7 +635,7 @@ export default function TvPage() {
           {view === 'maquinas' ? (
             <TvScrollGrid snapshots={snapshots} theme={theme} />
           ) : (
-            <TvComparativo theme={theme} />
+            <TvComparativo theme={theme} kpis={kpis} />
           )}
         </div>
 
