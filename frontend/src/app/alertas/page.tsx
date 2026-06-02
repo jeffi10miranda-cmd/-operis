@@ -47,14 +47,20 @@ function formatHora(iso: string) {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+const PER_PAGE = 50;
+
 export default function AlertasPage() {
   const [filtroSev, setFiltroSev] = useState<string>('TODOS');
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
   const [page, setPage] = useState(1);
-  const PER_PAGE = 50;
 
   const { data: contagem, isLoading: loadingCount } = useContagemAlertas();
-  const { data: alertasData, isLoading: loadingList } = useAlertas({ limit: 200 });
+  const { data: alertasData, isLoading: loadingList } = useAlertas({
+    severidade: filtroSev !== 'TODOS' ? filtroSev : undefined,
+    lido:       apenasNaoLidos ? false : undefined,
+    page,
+    limit:      PER_PAGE,
+  });
 
   const c = (contagem as Contagem | undefined) ?? MOCK_CONTAGEM;
   const raw = alertasData as any;
@@ -62,15 +68,9 @@ export default function AlertasPage() {
     : Array.isArray(raw?.items)   ? raw.items
     : Array.isArray(raw?.alertas) ? raw.alertas
     : [];
-
-  const alertasFiltrados = alertas.filter(a => {
-    if (filtroSev !== 'TODOS' && a.severidade !== filtroSev) return false;
-    if (apenasNaoLidos && a.lido) return false;
-    return true;
-  });
-
-  const totalPages = Math.ceil(alertasFiltrados.length / PER_PAGE);
-  const alertasPagina = alertasFiltrados.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const totalServer: number = raw?.total ?? alertas.length;
+  const totalPages = Math.ceil(totalServer / PER_PAGE);
+  const alertasPagina = alertas;
 
   if (loadingCount && loadingList) return <PageLoading />;
 
@@ -120,7 +120,7 @@ export default function AlertasPage() {
       </div>
 
       {/* Lista de alertas */}
-      {alertasFiltrados.length === 0 ? (
+      {!loadingList && alertasPagina.length === 0 ? (
         <div className="card p-10 text-center">
           <CheckCircle className="mx-auto mb-3 text-green-400" size={32} />
           <p className="text-sm text-slate-500">Nenhum alerta encontrado.</p>
@@ -162,7 +162,7 @@ export default function AlertasPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-2">
               <p className="text-xs text-slate-400">
-                {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, alertasFiltrados.length)} de {alertasFiltrados.length}
+                {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, totalServer)} de {totalServer}
               </p>
               <div className="flex gap-1">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
