@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useSnapshotsHoje, useProdutos, api } from '@/lib/api';
 import {
   Calendar, Search, Plus, Edit2, PowerOff, Trash2,
   CheckCircle2, AlertTriangle, AlertCircle,
@@ -753,38 +754,85 @@ type FiltroMaq = 'todas' | 'pendentes' | 'divergentes' | 'ok';
 function TabApontar() {
   const hoje = new Date().toISOString().slice(0, 10);
   const [data, setData]         = useState(hoje);
-  const [turno, setTurno]       = useState<Turno>('SEGUNDO');
-  const [apts, setApts]         = useState<Record<string, Apontamento>>(
-    () => Object.fromEntries(MACHINES.map(m => [m, { ...APONTAMENTO_VAZIO }])),
-  );
+  const [turno, setTurno]       = useState<Turno>('PRIMEIRO');
+  const [apts, setApts]         = useState<Record<string, Apontamento>>({});
   const [finalizado, setFinalizado]   = useState(false);
+  const [salvando, setSalvando]       = useState(false);
   const [obsAberta, setObsAberta]     = useState<string | null>(null);
   const [buscaMaq, setBuscaMaq]       = useState('');
   const [filtroMaq, setFiltroMaq]     = useState<FiltroMaq>('todas');
+
+  // Carrega snapshots reais do turno selecionado
+  const { data: snapshotsRaw, isLoading: loadingSnaps } = useSnapshotsHoje(turno);
+  const { data: produtosRaw } = useProdutos();
+  const snapshots = (snapshotsRaw as any[]) ?? [];
+  const produtosReais = (produtosRaw as any[]) ?? MOCK_PRODUTOS;
+
+  // Pre-popula o formulário com os dados do snapshot
+  useEffect(() => {
+    if (!snapshots.length) return;
+    const novoApts: Record<string, Apontamento> = {};
+    for (const s of snapshots) {
+      novoApts[s.maquina] = {
+        produto:      s.produtoNome || s.produto?.descricao || '',
+        op:           '',
+        qtdOP:        '',
+        qtdAcumulada: s.qtdAtual != null ? String(s.qtdAtual) : '',
+        cicloReal:    s.cicloAtual != null ? String(s.cicloAtual) : '',
+        cavidadeReal: s.cavidadeReal != null ? String(s.cavidadeReal) : '',
+        status:       s.status || '',
+        observacao:   s.observacao || '',
+      };
+    }
+    setApts(novoApts);
+  }, [snapshotsRaw, turno]);
+
+  const maquinas = useMemo(() => snapshots.map((s: any) => s.maquina).sort((a: string, b: string) =>
+    Number(a) - Number(b)
+  ), [snapshots]);
 
   function setField(maq: string, field: keyof Apontamento, value: string) {
     setApts(prev => ({ ...prev, [maq]: { ...prev[maq], [field]: value } }));
   }
 
-  const preenchidos  = MACHINES.filter(m => isPreenchido(apts[m])).length;
-  const divergentes  = MACHINES.filter(m => { const v = getValidacao(apts[m]); return v && !v.ok; }).length;
-  const dentropadrao = MACHINES.filter(m => { const v = getValidacao(apts[m]); return v && v.ok; }).length;
-  const progPct      = Math.round((preenchidos / MACHINES.length) * 100);
+  const preenchidos  = maquinas.filter(m => isPreenchido(apts[m])).length;
+  const divergentes  = maquinas.filter(m => { const v = getValidacao(apts[m]); return v && !v.ok; }).length;
+  const dentropadrao = maquinas.filter(m => { const v = getValidacao(apts[m]); return v && v.ok; }).length;
+  const progPct      = maquinas.length > 0 ? Math.round((preenchidos / maquinas.length) * 100) : 0;
 
   const maquinasFiltradas = useMemo(() => {
-    let list = MACHINES;
+    let list = maquinas;
     if (buscaMaq.trim()) {
       const q = buscaMaq.toLowerCase();
-      list = list.filter(m => m.toLowerCase().includes(q));
+      list = list.filter((m: string) => m.toLowerCase().includes(q));
     }
-    if (filtroMaq === 'pendentes')   list = list.filter(m => !isPreenchido(apts[m]));
-    if (filtroMaq === 'divergentes') list = list.filter(m => { const v = getValidacao(apts[m]); return v && !v.ok; });
-    if (filtroMaq === 'ok')          list = list.filter(m => { const v = getValidacao(apts[m]); return v && v.ok; });
+    if (filtroMaq === 'pendentes')   list = list.filter((m: string) => !isPreenchido(apts[m]));
+    if (filtroMaq === 'divergentes') list = list.filter((m: string) => { const v = getValidacao(apts[m]); return v && !v.ok; });
+    if (filtroMaq === 'ok')          list = list.filter((m: string) => { const v = getValidacao(apts[m]); return v && v.ok; });
     return list;
-  }, [buscaMaq, filtroMaq, apts]);
+  }, [buscaMaq, filtroMaq, apts, maquinas]);
+
+  async function salvarRonda() {
+    setSalvando(true);
+    try {
+      await Promise.allSettled(
+        maquinas.map((maq: string) => {
+          const ap = apts[maq];
+          if (!ap) return Promise.resolve();
+          return api.patch(`/snapshots/maquina/${maq}`, {
+            status:      ap.status || undefined,
+            qtdAtual:    ap.qtdAcumulada ? Number(ap.qtdAcumulada) : undefined,
+            observacao:  ap.observacao || undefined,
+          });
+        })
+      );
+      setFinalizado(true);
+    } catch { /* silent */ }
+    finally { setSalvando(false); }
+  }
 
   function limparTudo() {
-    setApts(Object.fromEntries(MACHINES.map(m => [m, { ...APONTAMENTO_VAZIO }])));
+    setApts({});
     setFinalizado(false);
   }
 
@@ -845,7 +893,7 @@ function TabApontar() {
           {/* Progresso */}
           <div className="flex-1 min-w-0 w-full sm:w-auto">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs sm:text-sm font-semibold text-gray-700">{preenchidos} / {MACHINES.length} máquinas</span>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700">{preenchidos} / {maquinas.length} máquinas</span>
               <span className="text-sm font-bold text-operis-dark">{progPct}%</span>
             </div>
             <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -890,8 +938,8 @@ function TabApontar() {
           </div>
           <div className="flex flex-wrap gap-1">
             {([
-              { key: 'todas',       label: 'Todas',          count: MACHINES.length },
-              { key: 'pendentes',   label: 'Pendentes',      count: MACHINES.length - preenchidos },
+              { key: 'todas',       label: 'Todas',          count: maquinas.length },
+              { key: 'pendentes',   label: 'Pendentes',      count: maquinas.length - preenchidos },
               { key: 'ok',          label: 'Dentro do padrão', count: dentropadrao },
               { key: 'divergentes', label: 'Com divergência', count: divergentes },
             ] as { key: FiltroMaq; label: string; count: number }[]).map(f => (
@@ -915,7 +963,7 @@ function TabApontar() {
           </div>
           {(buscaMaq || filtroMaq !== 'todas') && (
             <span className="text-xs text-gray-400">
-              Exibindo {maquinasFiltradas.length} de {MACHINES.length} máquinas
+              Exibindo {maquinasFiltradas.length} de {maquinas.length} máquinas
             </span>
           )}
         </div>
@@ -936,10 +984,15 @@ function TabApontar() {
           <span />
         </div>
 
-        {maquinasFiltradas.length === 0 && (
+        {loadingSnaps && (
+          <div className="py-12 text-center text-gray-400">
+            <p className="text-sm">Carregando dados do turno...</p>
+          </div>
+        )}
+        {!loadingSnaps && maquinasFiltradas.length === 0 && (
           <div className="py-12 text-center text-gray-400">
             <ClipboardList size={28} className="mx-auto mb-2 opacity-30" />
-            <p className="text-sm">Nenhuma máquina encontrada</p>
+            <p className="text-sm">{maquinas.length === 0 ? 'Nenhum dado sincronizado para este turno.' : 'Nenhuma máquina encontrada'}</p>
           </div>
         )}
 
@@ -982,7 +1035,7 @@ function TabApontar() {
                   className="input text-xs py-1.5 min-h-0 h-8"
                 >
                   <option value="">Selecionar produto...</option>
-                  {MOCK_PRODUTOS.filter(p => p.ativo).map(p => (
+                  {produtosReais.filter((p: any) => p.ativo).map((p: any) => (
                     <option key={p.id} value={p.descricao}>{p.descricao}</option>
                   ))}
                 </select>
@@ -1116,16 +1169,17 @@ function TabApontar() {
       {/* Rodapé com ação */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-gray-400">
-          {MACHINES.length - preenchidos > 0
-            ? `${MACHINES.length - preenchidos} máquina${MACHINES.length - preenchidos !== 1 ? 's' : ''} ainda não apontada${MACHINES.length - preenchidos !== 1 ? 's' : ''}`
+          {maquinas.length - preenchidos > 0
+            ? `${maquinas.length - preenchidos} máquina${maquinas.length - preenchidos !== 1 ? 's' : ''} ainda não apontada${maquinas.length - preenchidos !== 1 ? 's' : ''}`
             : 'Todas as máquinas apontadas!'}
         </p>
         <button
           onClick={() => setFinalizado(true)}
-          disabled={preenchidos === 0}
+          onClick={salvarRonda}
+          disabled={preenchidos === 0 || salvando}
           className="btn-primary gap-2 disabled:opacity-50"
         >
-          <Save size={15} /> Finalizar Ronda ({preenchidos}/{MACHINES.length})
+          <Save size={15} /> {salvando ? 'Salvando...' : `Finalizar Ronda (${preenchidos}/${maquinas.length})`}
         </button>
       </div>
     </div>
