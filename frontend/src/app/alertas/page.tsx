@@ -42,7 +42,8 @@ export default function AlertasPage() {
   const { data: alertasData, isLoading: loadingList } = useAlertas({ limit: 50 });
 
   const c = (contagem as Contagem | undefined) ?? MOCK_CONTAGEM;
-  const alertas: Alerta[] = (alertasData as any)?.alertas ?? (alertasData as Alerta[] | undefined) ?? [];
+  const raw = alertasData as any;
+  const alertas: Alerta[] = Array.isArray(raw) ? raw : Array.isArray(raw?.alertas) ? raw.alertas : [];
 
   const alertasFiltrados = alertas.filter(a => {
     if (filtroSev !== 'TODOS' && a.severidade !== filtroSev) return false;
