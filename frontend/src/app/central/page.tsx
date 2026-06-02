@@ -22,9 +22,9 @@ const MOCK_KPIS: KPIsData = {
 };
 
 const MOCK_SNAPSHOTS: Snapshot[] = [
-  { id: '1', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 01', produtoNome: 'Frasco reto 12', cicloAtual: 50, cavidadeReal: 24, velocidade: 120, status: 'EM_PRODUCAO', observacao: null, divergente: false, produto: { id: '', codigo: '', descricao: 'Frasco reto 12', ciclopadrao: 50, cavidadepadrao: 24, ativo: true, createdAt: '' } },
-  { id: '2', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 02', produtoNome: 'Tampa Kelly', cicloAtual: 20, cavidadeReal: 16, velocidade: 110, status: 'SETUP', observacao: null, divergente: false, produto: { id: '', codigo: '', descricao: 'Tampa Kelly', ciclopadrao: 20, cavidadepadrao: 16, ativo: true, createdAt: '' } },
-  { id: '3', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 03', produtoNome: 'Haste 48 mm', cicloAtual: 30, cavidadeReal: 32, velocidade: 95, status: 'REGULAGEM', observacao: null, divergente: true, produto: { id: '', codigo: '', descricao: 'Haste 48 mm', ciclopadrao: 30, cavidadepadrao: 28, ativo: true, createdAt: '' } },
+  { id: '1', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 01', produtoNome: 'Frasco reto 12', cicloAtual: 50, cavidadeReal: 24, velocidade: 120, status: 'EM_PRODUCAO', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Frasco reto 12', ciclopadrao: 50, cavidadepadrao: 24, ativo: true, createdAt: '' } },
+  { id: '2', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 02', produtoNome: 'Tampa Kelly', cicloAtual: 20, cavidadeReal: 16, velocidade: 110, status: 'SETUP', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Tampa Kelly', ciclopadrao: 20, cavidadepadrao: 16, ativo: true, createdAt: '' } },
+  { id: '3', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 03', produtoNome: 'Haste 48 mm', cicloAtual: 30, cavidadeReal: 32, velocidade: 95, status: 'REGULAGEM', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: true, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Haste 48 mm', ciclopadrao: 30, cavidadepadrao: 28, ativo: true, createdAt: '' } },
 ];
 
 const MOCK_ALERTS = [
@@ -59,17 +59,17 @@ function snapshotToCard(s: Snapshot) {
     name: s.maquina,
     product: s.produtoNome || s.produto?.descricao || '—',
     status: s.status,
-    op: (s as any).op ?? null,
-    qtdOP: (s as any).qtdOP ?? null,
+    op: s.op,
+    qtdOP: s.qtdOP,
     cycleCurrent: s.cicloAtual,
     cycleTarget: s.produto?.ciclopadrao ?? null,
     cavityCurrent: s.cavidadeReal,
     cavityTarget: s.produto?.cavidadepadrao ?? null,
-    qtdAtual: (s as any).qtdAtual ?? null,
+    qtdAtual: s.qtdAtual,
     velocity: s.velocidade,
     divergent: s.divergente,
     observation: s.observacao,
-    manualOverride: (s as any).manualOverride ?? false,
+    manualOverride: s.manualOverride,
   };
 }
 

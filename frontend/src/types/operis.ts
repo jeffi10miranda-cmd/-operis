@@ -15,6 +15,8 @@ export type StatusOperacional =
   | 'TRYOUT'
   | 'TROCA_DE_VERSAO'
   | 'FORA_DA_COR_PADRAO'
+  | 'FALTA_DE_OPERADOR'
+  | 'PARADA_PLANEJADA'
   | 'PARADA';
 
 export type AlertaTipo =
@@ -65,8 +67,12 @@ export interface Snapshot {
   cavidadeReal: number | null;
   velocidade: number | null;
   status: StatusOperacional;
+  op: string | null;
+  qtdOP: number | null;
+  qtdAtual: number | null;
   observacao: string | null;
   divergente: boolean;
+  manualOverride: boolean;
   produto?: Produto | null;
 }
 
@@ -190,6 +196,8 @@ export const STATUS_LABEL: Record<StatusOperacional, string> = {
   TRYOUT: 'Tryout',
   TROCA_DE_VERSAO: 'Troca de Versão',
   FORA_DA_COR_PADRAO: 'Fora da Cor Padrão',
+  FALTA_DE_OPERADOR: 'Falta de Operador',
+  PARADA_PLANEJADA: 'Parada Planejada',
   PARADA: 'Parada',
 };
 

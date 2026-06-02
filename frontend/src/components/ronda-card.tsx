@@ -55,11 +55,15 @@ interface RondaCardProps {
   onApontado?: () => void;
 }
 
+function fmtNum(raw: string): string {
+  if (!raw) return '';
+  const n = Number(raw.replace(/[^\d]/g, ''));
+  return isNaN(n) || raw === '' ? raw : n.toLocaleString('pt-BR');
+}
+
 export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
   const s = snapshot;
   const cfg = STATUS_CFG[s.status] ?? { label: s.status, pill: 'bg-slate-300 text-white', icon: Clock, dot: 'bg-slate-300' };
-  const StatusIcon = cfg.icon;
-  const ativo = s.status !== 'INATIVA';
 
   const [status,       setStatus]       = useState(s.status);
   const [produto,      setProduto]       = useState(s.produtoNome || s.produto?.descricao || '');
@@ -72,6 +76,7 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
   const [showModal,    setShowModal]     = useState(false);
   const [salvando,     setSalvando]      = useState(false);
   const [apontado,     setApontado]      = useState(false);
+  const [focusedNum,   setFocusedNum]    = useState<string | null>(null);
 
   // Atualiza campos quando o snapshot muda (nova sincronização)
   useEffect(() => {
@@ -86,6 +91,8 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
   }, [s.maquina, s.status]);
 
   const cfgAtual = STATUS_CFG[status] ?? cfg;
+  const ativo = status !== 'INATIVA';
+  const CfgIcon = cfgAtual.icon;
   const produtoSelecionado = produtos.find(p => p.descricao === produto);
   const cicloTarget  = produtoSelecionado?.ciclopadrao ?? s.produto?.ciclopadrao ?? null;
   const cavTarget    = produtoSelecionado?.cavidadepadrao ?? s.produto?.cavidadepadrao ?? null;
@@ -135,7 +142,7 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
             className={`p-1.5 rounded-lg transition-colors ${ativo ? 'text-green-500 hover:bg-red-50 hover:text-red-500' : 'text-slate-400 hover:bg-green-50 hover:text-green-500'}`}
             title={ativo ? 'Alterar status' : 'Ligar'}
           >
-            {ativo ? <StatusIcon size={14} /> : <PowerOff size={14} />}
+            {ativo ? <CfgIcon size={14} /> : <PowerOff size={14} />}
           </button>
         </div>
 
@@ -168,8 +175,10 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
             <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Nº OP</p>
             <input
               type="text"
-              value={opNum}
-              onChange={e => setOpNum(e.target.value)}
+              value={focusedNum === 'op' ? opNum : fmtNum(opNum)}
+              onChange={e => setOpNum(e.target.value.replace(/[^\d]/g, ''))}
+              onFocus={() => setFocusedNum('op')}
+              onBlur={() => setFocusedNum(null)}
               placeholder="Ex: 34028"
               className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-400"
             />
@@ -178,8 +187,10 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
             <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Qtd a realizar</p>
             <input
               type="text"
-              value={qtdOpVal}
-              onChange={e => setQtdOpVal(e.target.value)}
+              value={focusedNum === 'qtdop' ? qtdOpVal : fmtNum(qtdOpVal)}
+              onChange={e => setQtdOpVal(e.target.value.replace(/[^\d]/g, ''))}
+              onFocus={() => setFocusedNum('qtdop')}
+              onBlur={() => setFocusedNum(null)}
               placeholder="Total"
               className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-400"
             />
@@ -222,8 +233,10 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
           <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">QTD Acumulada</p>
           <input
             type="text"
-            value={qtdAcum}
-            onChange={e => setQtdAcum(e.target.value)}
+            value={focusedNum === 'qtd' ? qtdAcum : fmtNum(qtdAcum)}
+            onChange={e => setQtdAcum(e.target.value.replace(/[^\d]/g, ''))}
+            onFocus={() => setFocusedNum('qtd')}
+            onBlur={() => setFocusedNum(null)}
             placeholder="Quantidade"
             className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-400"
           />
