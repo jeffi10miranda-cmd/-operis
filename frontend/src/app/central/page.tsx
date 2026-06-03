@@ -279,8 +279,8 @@ export default function CentralPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2 sm:gap-3">
-        {/* 7 cards de status */}
+      {/* KPIs de status */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
         {kpiCards.map((k) => (
           <div key={k.label} className="kpi-corporate !px-3 !py-3 sm:!px-5 sm:!py-4">
             <p className="kpi-corporate__label text-[9px] sm:text-[10px]">{k.label}</p>
@@ -288,31 +288,29 @@ export default function CentralPage() {
             <p className="kpi-corporate__meta hidden sm:block">{k.meta}</p>
           </div>
         ))}
+      </div>
 
-        {/* Card combinado: Meta + Realizado */}
-        <div className="kpi-corporate !px-3 !py-3 sm:!px-4 sm:!py-3 col-span-1">
-          <p className="kpi-corporate__label text-[9px] sm:text-[10px] mb-2">OPs do Dia</p>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] text-gray-400 w-16 flex-shrink-0">Meta</span>
-              <span className="text-sm font-bold text-operis-dark tabular-nums text-right leading-tight">
-                {fmtNum(kpis.totalOPs)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] text-gray-400 w-16 flex-shrink-0">Realizado</span>
-              <span className="text-sm font-bold text-green-600 tabular-nums text-right leading-tight">
-                {fmtNum(kpis.totalAcumulado)}
-              </span>
-            </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1">
-              <div
-                className={`h-full rounded-full transition-all ${pctOP >= 80 ? 'bg-green-500' : pctOP >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
-                style={{ width: `${pctOP}%` }}
-              />
-            </div>
-            <p className="text-[10px] font-semibold text-gray-400 text-right">{pctOP}%</p>
+      {/* Faixa Meta / Realizado */}
+      <div className="card px-4 sm:px-6 py-3 flex flex-wrap items-center gap-4 sm:gap-8">
+        <p className="text-[10px] uppercase tracking-widest font-semibold text-gray-400">OPs do Dia</p>
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs text-gray-400">Meta</span>
+          <span className="text-xl font-bold text-operis-dark tabular-nums">{fmtNum(kpis.totalOPs)}</span>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs text-gray-400">Realizado</span>
+          <span className="text-xl font-bold text-green-600 tabular-nums">{fmtNum(kpis.totalAcumulado)}</span>
+        </div>
+        <div className="flex-1 min-w-[120px] flex items-center gap-3">
+          <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${pctOP >= 80 ? 'bg-green-500' : pctOP >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+              style={{ width: `${pctOP}%` }}
+            />
           </div>
+          <span className={`text-sm font-bold tabular-nums w-10 text-right ${pctOP >= 80 ? 'text-green-600' : pctOP >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+            {pctOP}%
+          </span>
         </div>
       </div>
 
