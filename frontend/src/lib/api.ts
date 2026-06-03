@@ -121,6 +121,14 @@ export function useProdutos() {
   return useSWR(hasApiAccess() ? '/produtos' : null, fetcher, SILENT);
 }
 
+export function useHorasStatus(data: string) {
+  return useSWR(
+    hasApiAccess() ? `/snapshots/horas-status?data=${data}` : null,
+    fetcher,
+    { ...SILENT, refreshInterval: 60000 },
+  );
+}
+
 export function useComparativoDias(dataA?: string, dataB?: string, somenteAlteracoes?: boolean) {
   const enabled = dataA && dataB;
   const url = enabled

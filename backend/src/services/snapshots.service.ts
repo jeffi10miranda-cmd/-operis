@@ -144,8 +144,8 @@ function detectarDivergencia(
     if (desvioCiclo > limiteDesvio) return true;
   }
 
-  // Verifica cavidade
-  if (row.cavidadeReal !== null && row.cavidadeReal !== produto.cavidadepadrao) {
+  // Verifica cavidade (apenas diminuição em relação ao padrão)
+  if (row.cavidadeReal !== null && row.cavidadeReal < produto.cavidadepadrao) {
     return true;
   }
 

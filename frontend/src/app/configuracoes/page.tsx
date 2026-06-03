@@ -11,12 +11,12 @@ import {
 import type { User } from '@/types/operis';
 import {
   Sheet, Shield, Bell, Users, Sliders, CheckCircle,
-  AlertCircle, Loader2, Eye, EyeOff, Plus,
+  AlertCircle, Loader2, Eye, EyeOff, Plus, Settings2,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function SectionCard({ title, subtitle, icon, children }: {
-  title: string; subtitle?: string; icon: ReactNode; children: ReactNode;
+function SectionCard({ title, subtitle, icon, action, children }: {
+  title: string; subtitle?: string; icon: ReactNode; action?: ReactNode; children: ReactNode;
 }) {
   return (
     <div className="card p-6">
@@ -24,10 +24,11 @@ function SectionCard({ title, subtitle, icon, children }: {
         <div className="w-9 h-9 rounded-xl bg-operis-dark/5 flex items-center justify-center flex-shrink-0 text-operis-dark">
           {icon}
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-base font-bold text-operis-dark">{title}</h2>
           {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
         </div>
+        {action && <div className="flex-shrink-0">{action}</div>}
       </div>
       {children}
     </div>
@@ -313,12 +314,17 @@ function SheetsSection() {
 }
 
 // ─── Seção: Limites operacionais ──────────────────────────────────────────────
+const CAVIDADES_PADRAO = [4, 8, 16, 24, 32, 48, 64, 128];
+
+// Padrão: alerta quando fechar metade das cavidades
+const CAVIDADES_DEFAULT: Record<number, number> = {
+  4: 2, 8: 2, 16: 4, 24: 4, 32: 8, 48: 8, 64: 16, 128: 32,
+};
+
 function LimitesSection() {
-  const [values, setValues] = useState({
-    desvio: '10',
-    setupMax: '60',
-    cavMin: '1',
-  });
+  const [values, setValues] = useState({ desvio: '10', setupMax: '60' });
+  // cavConfig: { 4: 2, 8: 2, ... } → molde de N cav alerta se fechar X
+  const [cavConfig, setCavConfig] = useState<Record<number, number>>(CAVIDADES_DEFAULT);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState('');
@@ -326,24 +332,22 @@ function LimitesSection() {
   useEffect(() => {
     fetchConfiguracao()
       .then((cfg) => {
-        setValues({
-          desvio: cfg.alert_ciclo_desvio_pct ?? '10',
-          setupMax: cfg.alert_setup_max_minutos ?? '60',
-          cavMin: cfg.alert_cavidade_min_diff ?? '1',
-        });
+        setValues({ desvio: cfg.alert_ciclo_desvio_pct ?? '10', setupMax: cfg.alert_setup_max_minutos ?? '60' });
+        if (cfg.alert_cavidades_config) {
+          try { setCavConfig(JSON.parse(cfg.alert_cavidades_config)); } catch { /* usa padrão */ }
+        }
       })
-      .catch(() => {}); // usa valores padrão quando offline
+      .catch(() => {});
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSave = async () => {
     setLoading(true);
     setError('');
     try {
       await saveConfiguracao({
-        alert_ciclo_desvio_pct: values.desvio,
+        alert_ciclo_desvio_pct:  values.desvio,
         alert_setup_max_minutos: values.setupMax,
-        alert_cavidade_min_diff: values.cavMin,
+        alert_cavidades_config:  JSON.stringify(cavConfig),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -354,11 +358,26 @@ function LimitesSection() {
     }
   };
 
+  const handleSave = async (e: React.FormEvent) => { e.preventDefault(); await doSave(); };
+
+  const configBtn = (
+    <button
+      type="button"
+      onClick={doSave}
+      disabled={loading}
+      title="Salvar configurações"
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-operis-dark text-white hover:bg-operis-dark/90 disabled:opacity-50 transition-all"
+    >
+      {loading ? <Loader2 size={13} className="animate-spin" /> : <Settings2 size={13} />}
+      Configurar
+    </button>
+  );
+
   return (
-    <SectionCard title="Limites Operacionais" subtitle="Parâmetros que definem alertas automáticos" icon={<Sliders size={18} />}>
+    <SectionCard title="Limites Operacionais" subtitle="Parâmetros que definem alertas automáticos" icon={<Sliders size={18} />} action={configBtn}>
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
       <form onSubmit={handleSave} className="space-y-4">
-        <Field label="Desvio de ciclo para alerta (%)" hint="Alertas serão gerados quando o ciclo real divergir deste percentual do ciclo padrão">
+        <Field label="Desvio de ciclo para alerta (%)" hint="Alerta gerado quando o ciclo real divergir (para cima ou para baixo) deste percentual em relação ao ciclo padrão do produto cadastrado">
           <div className="flex items-center gap-3">
             <input type="number" min="1" max="100" value={values.desvio}
               onChange={(e) => setValues((p) => ({ ...p, desvio: e.target.value }))}
@@ -376,12 +395,40 @@ function LimitesSection() {
           </div>
         </Field>
 
-        <Field label="Mínimo de cavidades abaixo para alerta" hint="Alerta de cavidade é gerado quando a cavidade real fica N unidades abaixo do padrão">
-          <div className="flex items-center gap-3">
-            <input type="number" min="1" value={values.cavMin}
-              onChange={(e) => setValues((p) => ({ ...p, cavMin: e.target.value }))}
-              className="input w-24 text-sm" />
-            <span className="text-sm text-gray-500">cavidades</span>
+        <Field label="Cavidades fechadas para alarmar" hint="Para cada tamanho de molde, defina quantas cavidades fechadas disparam o alerta crítico.">
+          <div className="mt-2 space-y-2">
+            {/* cabeçalho */}
+            <div className="grid grid-cols-[80px_1fr_auto] gap-3 px-3 text-[10px] text-gray-400 uppercase tracking-wider">
+              <span>Molde</span>
+              <span>Fechadas para alarmar</span>
+              <span>Restam</span>
+            </div>
+            {CAVIDADES_PADRAO.map((total) => {
+              const fechadas = cavConfig[total] ?? 1;
+              const restam   = total - fechadas;
+              return (
+                <div key={total} className="grid grid-cols-[80px_1fr_auto] gap-3 items-center bg-gray-50 rounded-xl px-3 py-2">
+                  <span className="text-sm font-bold text-operis-dark">{total} cav</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={total - 1}
+                      value={fechadas}
+                      onChange={(e) => {
+                        const v = Math.min(total - 1, Math.max(1, parseInt(e.target.value) || 1));
+                        setCavConfig((p) => ({ ...p, [total]: v }));
+                      }}
+                      className="input w-16 text-sm text-center"
+                    />
+                    <span className="text-xs text-gray-500">fechadas → alarma</span>
+                  </div>
+                  <span className={`text-xs font-semibold tabular-nums ${restam <= total / 2 ? 'text-red-500' : 'text-gray-500'}`}>
+                    {restam} abertas
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </Field>
 

@@ -91,6 +91,31 @@ snapshotsRouter.get('/kpis', async (_req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /api/snapshots/horas-status?data=YYYY-MM-DD
+// Retorna horas acumuladas por máquina × status (base: 8h por turno registrado)
+snapshotsRouter.get('/horas-status', async (req, res, next) => {
+  try {
+    const dataParam = req.query.data as string | undefined;
+    const data = dataParam ? new Date(dataParam + 'T00:00:00') : new Date();
+    data.setHours(0, 0, 0, 0);
+
+    const snapshots = await prisma.snapshotTurno.findMany({
+      where: { data },
+      orderBy: [{ maquina: 'asc' }, { turno: 'asc' }],
+    });
+
+    // Cada turno representa ~8h; agrupa por (maquina, status)
+    const map = new Map<string, { maquina: string; status: string; produtoNome: string | null; horas: number }>();
+    for (const s of snapshots) {
+      const key = `${s.maquina}::${s.status}`;
+      if (!map.has(key)) map.set(key, { maquina: s.maquina, status: s.status, produtoNome: s.produtoNome, horas: 0 });
+      map.get(key)!.horas += 8;
+    }
+
+    res.json(Array.from(map.values()));
+  } catch (e) { next(e); }
+});
+
 // GET /api/snapshots/maquina/:id
 snapshotsRouter.get('/maquina/:id', async (req, res, next) => {
   try {

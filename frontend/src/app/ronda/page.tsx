@@ -1,13 +1,13 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useSnapshotsHoje, useSnapshotsUltimo, useProdutos, api } from '@/lib/api';
+import { useSnapshotsHoje, useSnapshotsUltimo, useProdutos, useHorasStatus, api } from '@/lib/api';
 import { RondaCard } from '@/components/ronda-card';
 import {
   Calendar, Search, Plus, Edit2, PowerOff, Trash2,
   CheckCircle2, AlertTriangle, AlertCircle,
   Package, ClipboardList, LayoutList, ArrowUpDown,
-  ClipboardCheck, Save, RotateCcw, ChevronRight, Info,
+  ClipboardCheck, Save, RotateCcw, ChevronRight, Info, Clock,
 } from 'lucide-react';
 
 // ── Tipos ─────────────────────────────────────
@@ -471,6 +471,117 @@ function TabRegistros() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Tab: Horas por Status ─────────────────────
+const HORA_STATUS_CFG = [
+  { key: 'producao',   label: 'Em Produção', statuses: ['EM_PRODUCAO'],                                                                            cor: 'text-green-700',  fundo: 'bg-green-50',  barra: 'bg-green-400'  },
+  { key: 'setup',      label: 'Setup',       statuses: ['SETUP','SETUP_DE_COR','FORA_DA_COR_PADRAO','REGULAGEM','TROCA_DE_VERSAO'],                  cor: 'text-amber-700',  fundo: 'bg-amber-50',  barra: 'bg-amber-400'  },
+  { key: 'parada',     label: 'Parada',      statuses: ['MANUTENCAO','FERRAMENTARIA'],                                                              cor: 'text-red-700',    fundo: 'bg-red-50',    barra: 'bg-red-400'    },
+  { key: 'aguardando', label: 'Aguardando',  statuses: ['AGUARDANDO_MP','AGUARDANDO_TECNICO','AGUARDANDO_LIBERACAO','AGUARDANDO_ESTUFAGEM'],         cor: 'text-orange-700', fundo: 'bg-orange-50', barra: 'bg-orange-400' },
+  { key: 'outros',     label: 'Outros',      statuses: ['REINICIO','TRYOUT','INATIVA','FALTA_DE_OPERADOR','PARADA_PLANEJADA'],                       cor: 'text-slate-500',  fundo: 'bg-slate-50',  barra: 'bg-slate-300'  },
+] as const;
+
+type CatKey = typeof HORA_STATUS_CFG[number]['key'];
+
+function fmtHoras(h: number) {
+  const hs = Math.floor(h);
+  const ms = Math.round((h - hs) * 60);
+  return ms > 0 ? `${hs}h ${ms}m` : `${hs}h`;
+}
+
+function TabHoras() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const [data, setData] = useState(hoje);
+  const { data: registros, isLoading } = useHorasStatus(data);
+
+  type Registro = { maquina: string; status: string; produtoNome: string | null; horas: number };
+
+  const maquinaMap = useMemo(() => {
+    if (!registros) return new Map<string, Record<CatKey, number>>();
+    const map = new Map<string, Record<CatKey, number>>();
+    for (const r of (registros as Registro[])) {
+      if (!map.has(r.maquina)) map.set(r.maquina, { producao: 0, setup: 0, parada: 0, aguardando: 0, outros: 0 });
+      const cat = HORA_STATUS_CFG.find(c => (c.statuses as readonly string[]).includes(r.status))?.key ?? 'outros';
+      map.get(r.maquina)![cat] += r.horas;
+    }
+    return map;
+  }, [registros]);
+
+  const totais = useMemo(() => {
+    const t = { producao: 0, setup: 0, parada: 0, aguardando: 0, outros: 0 } as Record<CatKey, number>;
+    for (const cats of maquinaMap.values()) {
+      for (const cfg of HORA_STATUS_CFG) t[cfg.key] += cats[cfg.key];
+    }
+    return t;
+  }, [maquinaMap]);
+
+  const maquinas = [...maquinaMap.keys()].sort();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <input type="date" value={data} max={hoje}
+          onChange={(e) => setData(e.target.value)}
+          className="input text-sm w-44" />
+        <span className="text-xs text-gray-400">
+          {maquinas.length} máquina{maquinas.length !== 1 ? 's' : ''} registrada{maquinas.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* Totais por categoria */}
+      <div className="grid grid-cols-5 gap-3">
+        {HORA_STATUS_CFG.map(cfg => (
+          <div key={cfg.key} className={`card px-4 py-3 ${cfg.fundo}`}>
+            <p className={`text-xs font-semibold ${cfg.cor}`}>{cfg.label}</p>
+            <p className={`text-2xl font-bold mt-1 ${cfg.cor}`}>{fmtHoras(totais[cfg.key])}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabela por máquina */}
+      {isLoading ? (
+        <p className="text-sm text-gray-400 text-center py-6">Carregando...</p>
+      ) : maquinas.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-6">Nenhum registro para esta data.</p>
+      ) : (
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1.4fr_repeat(5,1fr)] gap-2 px-4 pb-1 text-[10px] text-gray-400 uppercase tracking-wider">
+            <span>Máquina</span>
+            {HORA_STATUS_CFG.map(c => <span key={c.key} className="text-center">{c.label}</span>)}
+          </div>
+          {maquinas.map(maq => {
+            const cats = maquinaMap.get(maq)!;
+            const total = HORA_STATUS_CFG.reduce((s, c) => s + cats[c.key], 0);
+            return (
+              <div key={maq} className="card px-4 py-3">
+                <div className="grid grid-cols-[1.4fr_repeat(5,1fr)] gap-2 items-center">
+                  <div>
+                    <p className="text-sm font-bold text-operis-dark leading-none">{maq}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Total: {fmtHoras(total)}</p>
+                  </div>
+                  {HORA_STATUS_CFG.map(cfg => (
+                    <div key={cfg.key} className="text-center">
+                      {cats[cfg.key] > 0
+                        ? <span className={`text-sm font-bold ${cfg.cor}`}>{fmtHoras(cats[cfg.key])}</span>
+                        : <span className="text-xs text-gray-300">—</span>}
+                    </div>
+                  ))}
+                </div>
+                {total > 0 && (
+                  <div className="mt-2 flex h-1.5 rounded-full overflow-hidden gap-px">
+                    {HORA_STATUS_CFG.map(cfg => cats[cfg.key] > 0 && (
+                      <div key={cfg.key} style={{ width: `${(cats[cfg.key] / total) * 100}%` }} className={cfg.barra} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1054,7 +1165,7 @@ function TabApontar() {
 // ── Página principal
 
 // ── Página principal ──────────────────────────
-type Tab = 'apontar' | 'registros' | 'resumo' | 'produtos';
+type Tab = 'apontar' | 'registros' | 'horas' | 'resumo' | 'produtos';
 
 export default function RondaPage() {
   const [tab, setTab] = useState<Tab>('apontar');
@@ -1062,6 +1173,7 @@ export default function RondaPage() {
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'apontar',   label: 'Apontar Ronda',    icon: <ClipboardCheck size={15} /> },
     { key: 'registros', label: 'Registros',         icon: <LayoutList     size={15} /> },
+    { key: 'horas',     label: 'Horas por Status',  icon: <Clock          size={15} /> },
     { key: 'resumo',    label: 'Resumo diário',     icon: <Calendar       size={15} /> },
     { key: 'produtos',  label: 'Banco de Produtos', icon: <Package        size={15} /> },
   ];
@@ -1084,6 +1196,7 @@ export default function RondaPage() {
 
       {tab === 'apontar'   && <TabApontar />}
       {tab === 'registros' && <TabRegistros />}
+      {tab === 'horas'     && <TabHoras />}
       {tab === 'resumo'    && <TabResumoDiario />}
       {tab === 'produtos'  && <TabProdutos />}
     </div>

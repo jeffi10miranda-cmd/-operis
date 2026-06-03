@@ -11,6 +11,15 @@ const alertasService = {
     snapshot: SnapshotTurno,
     produto: Produto
   ): Promise<void> {
+    // Busca limites configurados no banco
+    const cfgDesvio = await prisma.configuracao.findUnique({ where: { chave: 'alert_ciclo_desvio_pct' } });
+    const cfgCav    = await prisma.configuracao.findUnique({ where: { chave: 'alert_cavidades_config' } });
+    const desvioFator = parseFloat(cfgDesvio?.valor ?? '10') / 100;
+    // cavConfig: { "4": 2, "8": 2, ... } → molde de N cav: X fechadas = CRÍTICO
+    const cavConfig: Record<string, number> = cfgCav?.valor
+      ? (() => { try { return JSON.parse(cfgCav.valor); } catch { return {}; } })()
+      : { '4':2,'8':2,'16':4,'24':4,'32':8,'48':8,'64':16,'128':32 };
+
     const alertas: Array<{
       tipo: AlertaTipo;
       severidade: AlertaSeveridade;
@@ -18,8 +27,8 @@ const alertasService = {
       descricao: string;
     }> = [];
 
-    // Ciclo acima do padrão
-    if (snapshot.cicloAtual !== null && snapshot.cicloAtual > produto.ciclopadrao) {
+    // Ciclo acima do padrão (usa threshold configurado)
+    if (snapshot.cicloAtual !== null && snapshot.cicloAtual > produto.ciclopadrao * (1 + desvioFator)) {
       const diff = snapshot.cicloAtual - produto.ciclopadrao;
       const pct = Math.round((diff / produto.ciclopadrao) * 100);
       alertas.push({
@@ -30,25 +39,29 @@ const alertasService = {
       });
     }
 
-    // Ciclo abaixo do padrão
-    if (snapshot.cicloAtual !== null && snapshot.cicloAtual < produto.ciclopadrao * 0.85) {
+    // Ciclo abaixo do padrão (usa mesmo threshold configurado, simétrico)
+    if (snapshot.cicloAtual !== null && snapshot.cicloAtual < produto.ciclopadrao * (1 - desvioFator)) {
       const diff = produto.ciclopadrao - snapshot.cicloAtual;
+      const pct = Math.round((diff / produto.ciclopadrao) * 100);
       alertas.push({
         tipo: 'CICLO_ABAIXO',
-        severidade: 'ATENCAO',
+        severidade: pct >= 20 ? 'CRITICO' : 'ATENCAO',
         titulo: `Ciclo abaixo do padrão -${diff}s`,
-        descricao: `${snapshot.maquina}: Ciclo atual ${snapshot.cicloAtual}s (padrão ${produto.ciclopadrao}s)`,
+        descricao: `${snapshot.maquina}: Ciclo atual ${snapshot.cicloAtual}s (padrão ${produto.ciclopadrao}s, -${pct}%)`,
       });
     }
 
-    // Cavidade real abaixo do padrão
+    // Cavidade real abaixo do padrão (qualquer diminuição gera alerta)
     if (snapshot.cavidadeReal !== null && snapshot.cavidadeReal < produto.cavidadepadrao) {
-      const diff = produto.cavidadepadrao - snapshot.cavidadeReal;
+      const fechadas  = produto.cavidadepadrao - snapshot.cavidadeReal;
+      const limiar    = cavConfig[String(produto.cavidadepadrao)] ?? 1;
+      // CRÍTICO se fechou >= limiar configurado para este tamanho de molde
+      const isCritico = fechadas >= limiar;
       alertas.push({
         tipo: 'CAVIDADE_ABAIXO',
-        severidade: diff >= 4 ? 'CRITICO' : 'ATENCAO',
+        severidade: isCritico ? 'CRITICO' : 'ATENCAO',
         titulo: `Cavidade abaixo do padrão (${snapshot.cavidadeReal}/${produto.cavidadepadrao})`,
-        descricao: `${snapshot.maquina}: Cavidade real ${snapshot.cavidadeReal}, padrão ${produto.cavidadepadrao}`,
+        descricao: `${snapshot.maquina}: ${fechadas} cavidade${fechadas !== 1 ? 's' : ''} fechada${fechadas !== 1 ? 's' : ''} — real ${snapshot.cavidadeReal}, padrão ${produto.cavidadepadrao}`,
       });
     }
 
