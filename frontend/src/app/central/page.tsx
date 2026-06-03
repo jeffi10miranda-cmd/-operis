@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import {
-  AlertCircle, TrendingUp, LayoutGrid, List, ChevronDown, Clock, Gauge,
+  AlertCircle, TrendingUp, LayoutGrid, List, ChevronDown, Clock, Gauge, Search, X,
 } from 'lucide-react';
 import { MachineCard } from '@/components/machine-card';
 import { CentralSkeleton } from '@/components/skeleton';
@@ -115,10 +115,22 @@ const TURNO_CONFIG = [
   { id: 'TERCEIRO' as const, label: '3º Turno', horario: '22:00–06:00', cor: 'bg-slate-600' },
 ];
 
+const STATUS_GROUPS: Record<string, string[]> = {
+  EM_PRODUCAO: ['EM_PRODUCAO'],
+  SETUP:       ['SETUP', 'SETUP_DE_COR', 'TROCA_DE_VERSAO', 'FORA_DA_COR_PADRAO'],
+  REGULAGEM:   ['REGULAGEM', 'REINICIO', 'TRYOUT'],
+  AGUARDANDO:  ['AGUARDANDO_MP', 'AGUARDANDO_TECNICO', 'AGUARDANDO_LIBERACAO', 'AGUARDANDO_ESTUFAGEM'],
+  PARADAS:     ['MANUTENCAO', 'FERRAMENTARIA', 'FALTA_DE_OPERADOR', 'PARADA_PLANEJADA'],
+  INATIVA:     ['INATIVA'],
+};
+
 export default function CentralPage() {
   useSocket();
   const { turnoAtual: turnoView } = useTurno();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const [searchQuery, setSearchQuery]   = useState('');
+  const [statusFilter, setStatusFilter] = useState('TODOS');
 
   const { data: kpisData, isLoading: kpiLoading, error: kpiError } = useKPIs();
   const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO');
@@ -126,6 +138,19 @@ export default function CentralPage() {
   const { data: t3Raw, mutate: reloadT3 } = useSnapshotsHoje('TERCEIRO');
 
   function reloadAll() { reloadT1(); reloadT2(); reloadT3(); }
+
+  function applyFilters(machines: ReturnType<typeof snapshotToCard>[]) {
+    const q = searchQuery.trim().toLowerCase();
+    return machines.filter(m => {
+      const matchSearch = !q ||
+        m.op?.toLowerCase().includes(q) ||
+        m.maquina?.toLowerCase().includes(q) ||
+        m.product.toLowerCase().includes(q);
+      const matchStatus = statusFilter === 'TODOS' ||
+        (STATUS_GROUPS[statusFilter] ?? [statusFilter]).includes(m.status);
+      return matchSearch && matchStatus;
+    });
+  }
 
   const t1 = useMemo(() => ((t1Raw as Snapshot[] | undefined) ?? []).map(snapshotToCard), [t1Raw]);
   const t2 = useMemo(() => ((t2Raw as Snapshot[] | undefined) ?? []).map(snapshotToCard), [t2Raw]);
@@ -197,10 +222,58 @@ export default function CentralPage() {
             </div>
           </div>
 
+          {/* Barra de busca e filtros */}
+          {(() => {
+            const all = [...t1, ...t2, ...t3];
+            const filterTabs = [
+              { id: 'TODOS',       label: 'Todos',        count: all.length },
+              { id: 'EM_PRODUCAO', label: 'Em Produção',  count: all.filter(m => m.status === 'EM_PRODUCAO').length },
+              { id: 'SETUP',       label: 'Setup',        count: all.filter(m => STATUS_GROUPS.SETUP.includes(m.status)).length },
+              { id: 'REGULAGEM',   label: 'Regulagem',    count: all.filter(m => STATUS_GROUPS.REGULAGEM.includes(m.status)).length },
+              { id: 'AGUARDANDO',  label: 'Aguardando',   count: all.filter(m => STATUS_GROUPS.AGUARDANDO.includes(m.status)).length },
+              { id: 'PARADAS',     label: 'Paradas',      count: all.filter(m => STATUS_GROUPS.PARADAS.includes(m.status)).length },
+              { id: 'INATIVA',     label: 'Inativas',     count: all.filter(m => m.status === 'INATIVA').length },
+            ];
+            return (
+              <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por OP, máquina ou produto…"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 bg-gray-50"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {filterTabs.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setStatusFilter(f.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                        statusFilter === f.id
+                          ? 'bg-operis-dark text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {f.label}{f.count > 0 ? ` (${f.count})` : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Visão: turno específico */}
           {turnoView !== 'TODOS' && (
             <TurnoSection
-              machines={turnoDataMap[turnoView] ?? []}
+              machines={applyFilters(turnoDataMap[turnoView] ?? [])}
               viewMode={viewMode}
               onUpdated={() => turnoReloadMap[turnoView]?.()}
             />
@@ -210,7 +283,7 @@ export default function CentralPage() {
           {turnoView === 'TODOS' && (
             <div className="space-y-6">
               {TURNO_CONFIG.map(tc => {
-                const maquinas = turnoDataMap[tc.id] ?? [];
+                const maquinas = applyFilters(turnoDataMap[tc.id] ?? []);
                 return (
                   <div key={tc.id}>
                     <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl`} style={{ background: 'var(--operis-surface)' }}>
