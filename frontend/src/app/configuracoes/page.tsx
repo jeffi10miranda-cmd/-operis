@@ -11,7 +11,7 @@ import {
 import type { User } from '@/types/operis';
 import {
   Sheet, Shield, Bell, Users, Sliders, CheckCircle,
-  AlertCircle, Loader2, Eye, EyeOff, Plus, Settings2,
+  AlertCircle, Loader2, Eye, EyeOff, Plus, Settings2, Palette,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -631,12 +631,103 @@ function AlertRulesSection() {
   );
 }
 
+// ─── Seção: Aparência ─────────────────────────────────────────────────────────
+const CLOCK_TEMAS = [
+  {
+    key: 'escuro',
+    label: 'Escuro',
+    preview: { card: 'bg-[#1a2236]', time: 'text-white', date: 'text-white/60', badge: 'bg-white/10 text-blue-400' },
+  },
+  {
+    key: 'branco',
+    label: 'Branco',
+    preview: { card: 'bg-white border border-gray-200', time: 'text-gray-900', date: 'text-gray-400', badge: 'bg-gray-100 text-gray-600' },
+  },
+  {
+    key: 'azul',
+    label: 'Azul',
+    preview: { card: 'bg-blue-600', time: 'text-white', date: 'text-white/70', badge: 'bg-white/20 text-white' },
+  },
+  {
+    key: 'preto',
+    label: 'Preto',
+    preview: { card: 'bg-black', time: 'text-white', date: 'text-white/50', badge: 'bg-white/10 text-amber-400' },
+  },
+] as const;
+
+export type ClockTema = typeof CLOCK_TEMAS[number]['key'];
+
+function ClockTemaSection() {
+  const [tema, setTema] = useState<ClockTema>('escuro');
+  const [loading, setLoading] = useState(false);
+  const [saved, setSaved]     = useState(false);
+
+  useEffect(() => {
+    fetchConfiguracao()
+      .then((cfg) => { if (cfg.clock_tema) setTema(cfg.clock_tema as ClockTema); })
+      .catch(() => {});
+  }, []);
+
+  const salvar = async (novoTema: ClockTema) => {
+    setTema(novoTema);
+    setLoading(true);
+    try {
+      await saveConfiguracao({ clock_tema: novoTema });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Aparência" subtitle="Personalize o tema do relógio digital" icon={<Palette size={18} />}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {CLOCK_TEMAS.map((t) => {
+          const sel = tema === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => salvar(t.key)}
+              disabled={loading}
+              className={`group flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                sel ? 'border-operis-dark shadow-sm' : 'border-gray-100 hover:border-gray-300'
+              }`}
+            >
+              {/* Mini preview do relógio */}
+              <div className={`w-full rounded-lg p-3 flex flex-col items-center gap-1 ${t.preview.card}`}>
+                <p className={`font-mono text-base font-bold tabular-nums leading-none ${t.preview.time}`}>
+                  15:21:40
+                </p>
+                <p className={`text-[9px] ${t.preview.date}`}>Qua, 03 Junho</p>
+                <span className={`text-[9px] font-semibold rounded-full px-2 py-0.5 ${t.preview.badge}`}>
+                  2º Turno
+                </span>
+              </div>
+              <span className={`text-xs font-semibold ${sel ? 'text-operis-dark' : 'text-gray-500'}`}>
+                {t.label}
+              </span>
+              {sel && (
+                <span className="flex items-center gap-1 text-[10px] text-green-600 font-semibold">
+                  {saved ? <><CheckCircle size={10} /> Salvo</> : loading ? <Loader2 size={10} className="animate-spin" /> : '✓ Ativo'}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </SectionCard>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ConfiguracoesPage() {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       <SheetsSection />
       <LimitesSection />
+      <ClockTemaSection />
       <UsuariosSection />
       <AlertRulesSection />
     </div>

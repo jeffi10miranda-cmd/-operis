@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { MachineCard } from '@/components/machine-card';
 import { CentralSkeleton } from '@/components/skeleton';
-import { useKPIs, useSnapshotsHoje, useAlertas } from '@/lib/api';
+import { useKPIs, useSnapshotsHoje, useAlertas, fetchConfiguracao } from '@/lib/api';
+import type { ClockTema } from '@/app/configuracoes/page';
 import { useTurno } from '@/contexts/turno-context';
 import { useSocket } from '@/hooks/useSocket';
 import type { KPIsData, Snapshot } from '@/types/operis';
@@ -124,45 +125,71 @@ const STATUS_GROUPS: Record<string, string[]> = {
   INATIVA:     ['INATIVA'],
 };
 
+const CLOCK_ESTILOS: Record<ClockTema, {
+  card: string; label: string; time: string; date: string;
+  badge: string; turno1: string; turno2: string; turno3: string; link: string;
+}> = {
+  escuro: {
+    card: 'bg-operis-dark', label: 'text-white/40', time: 'text-white',
+    date: 'text-white/60', badge: 'bg-white/10', turno1: 'text-blue-400',
+    turno2: 'text-purple-400', turno3: 'text-amber-400', link: 'text-white/40 hover:text-white/70',
+  },
+  branco: {
+    card: 'bg-white border border-gray-200', label: 'text-gray-400', time: 'text-gray-900',
+    date: 'text-gray-400', badge: 'bg-gray-100', turno1: 'text-blue-600',
+    turno2: 'text-purple-600', turno3: 'text-amber-600', link: 'text-gray-400 hover:text-gray-700',
+  },
+  azul: {
+    card: 'bg-blue-600', label: 'text-white/50', time: 'text-white',
+    date: 'text-white/70', badge: 'bg-white/20', turno1: 'text-white',
+    turno2: 'text-white', turno3: 'text-white', link: 'text-white/50 hover:text-white/80',
+  },
+  preto: {
+    card: 'bg-black', label: 'text-white/30', time: 'text-white',
+    date: 'text-white/50', badge: 'bg-white/10', turno1: 'text-blue-400',
+    turno2: 'text-purple-400', turno3: 'text-amber-400', link: 'text-white/30 hover:text-white/60',
+  },
+};
+
 function DigitalClock() {
-  const [now, setNow] = useState(new Date());
+  const [now, setNow]     = useState(new Date());
+  const [tema, setTema]   = useState<ClockTema>('escuro');
+
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    fetchConfiguracao()
+      .then((cfg) => { if (cfg.clock_tema) setTema(cfg.clock_tema as ClockTema); })
+      .catch(() => {});
+  }, []);
+
+  const est  = CLOCK_ESTILOS[tema] ?? CLOCK_ESTILOS.escuro;
   const hms  = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const data = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   const h = now.getHours();
-  const turno = h >= 6 && h < 14 ? { label: '1º Turno', cor: 'text-blue-400',   horario: '06:00 – 14:00' }
-              : h >= 14 && h < 22 ? { label: '2º Turno', cor: 'text-purple-400', horario: '14:00 – 22:00' }
-              :                     { label: '3º Turno', cor: 'text-amber-400',  horario: '22:00 – 06:00' };
+  const turno = h >= 6 && h < 14
+    ? { label: '1º Turno', cor: est.turno1, horario: '06:00 – 14:00' }
+    : h >= 14 && h < 22
+    ? { label: '2º Turno', cor: est.turno2, horario: '14:00 – 22:00' }
+    : { label: '3º Turno', cor: est.turno3, horario: '22:00 – 06:00' };
 
   return (
-    <div className="card bg-operis-dark text-white p-5 flex flex-col items-center gap-2">
-      <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold">Horário atual</p>
-
-      {/* Relógio digital */}
-      <p className="font-mono text-4xl font-bold tracking-wider tabular-nums leading-none">
+    <div className={`card p-5 flex flex-col items-center gap-2 ${est.card}`}>
+      <p className={`text-[10px] uppercase tracking-widest font-semibold ${est.label}`}>Horário atual</p>
+      <p className={`font-mono text-4xl font-bold tracking-wider tabular-nums leading-none ${est.time}`}>
         {hms}
       </p>
-
-      {/* Data */}
-      <p className="text-xs text-white/60 capitalize">{data}</p>
-
-      {/* Turno */}
-      <div className="mt-1 flex items-center gap-2 bg-white/10 rounded-full px-3 py-1">
-        <span className={`w-1.5 h-1.5 rounded-full ${turno.cor.replace('text-', 'bg-')}`} />
+      <p className={`text-xs capitalize ${est.date}`}>{data}</p>
+      <div className={`mt-1 flex items-center gap-2 rounded-full px-3 py-1 ${est.badge}`}>
+        <span className={`w-1.5 h-1.5 rounded-full bg-current ${turno.cor}`} />
         <span className={`text-xs font-semibold ${turno.cor}`}>{turno.label}</span>
-        <span className="text-[10px] text-white/40">{turno.horario}</span>
+        <span className={`text-[10px] ${est.date}`}>{turno.horario}</span>
       </div>
-
-      {/* Link para comparativo */}
-      <Link
-        href="/comparativos"
-        className="mt-1 flex items-center gap-1 text-[10px] text-white/40 hover:text-white/70 transition-colors"
-      >
+      <Link href="/comparativos" className={`mt-1 flex items-center gap-1 text-[10px] transition-colors ${est.link}`}>
         Ver métricas por turno <ArrowRight size={10} />
       </Link>
     </div>
