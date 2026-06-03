@@ -138,7 +138,7 @@ export default function CentralPage() {
     ? [...t1, ...t2, ...t3]
     : turnoDataMap[turnoView] ?? [];
 
-  const previewMode = Boolean(kpiError);
+  const previewMode = Boolean(kpiError) && !kpisData;
   const kpis = (kpisData as KPIsData | undefined) ?? MOCK_KPIS;
   const total = kpis.total || snapshots.length || 1;
 
