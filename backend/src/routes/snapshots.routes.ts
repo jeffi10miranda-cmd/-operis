@@ -118,28 +118,43 @@ snapshotsRouter.get('/maquina/:id', async (req, res, next) => {
 // PATCH /api/snapshots/maquina/:maquina — override manual de status/qtd
 snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
   try {
-    const { status, op, qtdOP, qtdAtual, observacao, liberarSync } = req.body;
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const { status, op, qtdOP, qtdAtual, observacao, liberarSync, data: dataParam, turno: turnoParam } = req.body;
 
-    const snapshot = await prisma.snapshotTurno.findFirst({
-      where: { maquina: req.params.maquina, data: hoje },
-      orderBy: { capturadoEm: 'desc' },
-    });
+    const data = dataParam ? new Date(dataParam + 'T00:00:00') : new Date();
+    data.setHours(0, 0, 0, 0);
 
-    if (!snapshot) {
-      return res.status(404).json({ error: 'Máquina não encontrada hoje' });
+    // Determina turno pelo horário atual se não informado
+    function turnoAtual(): Turno {
+      const h = new Date().getHours();
+      if (h >= 6  && h < 14) return 'PRIMEIRO';
+      if (h >= 14 && h < 22) return 'SEGUNDO';
+      return 'TERCEIRO';
     }
+    const turno: Turno = (turnoParam as Turno) || turnoAtual();
 
-    const updated = await prisma.snapshotTurno.update({
-      where: { id: snapshot.id },
-      data: {
-        ...(status     !== undefined ? { status: status as StatusOperacional } : {}),
-        ...(op         !== undefined ? { op }                                 : {}),
-        ...(qtdOP      !== undefined ? { qtdOP: Number(qtdOP) }               : {}),
-        ...(qtdAtual   !== undefined ? { qtdAtual: Number(qtdAtual) }         : {}),
-        ...(observacao !== undefined ? { observacao }                          : {}),
-        manualOverride: liberarSync ? false : true,
+    const updateData = {
+      ...(status     !== undefined ? { status: status as StatusOperacional } : {}),
+      ...(op         !== undefined ? { op }                                  : {}),
+      ...(qtdOP      !== undefined ? { qtdOP: Number(qtdOP) }                : {}),
+      ...(qtdAtual   !== undefined ? { qtdAtual: Number(qtdAtual) }          : {}),
+      ...(observacao !== undefined ? { observacao }                           : {}),
+      manualOverride: liberarSync ? false : true,
+    };
+
+    // Upsert: atualiza se existe, cria se não existe
+    const updated = await prisma.snapshotTurno.upsert({
+      where: { data_turno_maquina: { data, turno, maquina: req.params.maquina } },
+      update: updateData,
+      create: {
+        data,
+        turno,
+        maquina:       req.params.maquina,
+        status:        (status || 'INATIVA') as StatusOperacional,
+        op:            op            ?? null,
+        qtdOP:         qtdOP         != null ? Number(qtdOP)         : null,
+        qtdAtual:      qtdAtual      != null ? Number(qtdAtual)      : null,
+        observacao:    observacao    ?? null,
+        manualOverride: true,
       },
     });
 

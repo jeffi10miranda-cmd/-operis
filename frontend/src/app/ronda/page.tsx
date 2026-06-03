@@ -1039,6 +1039,8 @@ function TabApontar() {
                 key={maq}
                 snapshot={getSnapOrDefault(maq)}
                 produtos={produtosReais}
+                data={data}
+                turno={turno}
                 onApontado={() => {}}
               />
             ))}

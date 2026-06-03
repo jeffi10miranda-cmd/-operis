@@ -53,6 +53,8 @@ interface RondaCardProps {
   snapshot: Snapshot;
   produtos: { id: string; descricao: string; ciclopadrao: number; cavidadepadrao: number }[];
   onApontado?: () => void;
+  data?: string;
+  turno?: string;
 }
 
 function fmtNum(raw: string): string {
@@ -61,7 +63,7 @@ function fmtNum(raw: string): string {
   return isNaN(n) || raw === '' ? raw : n.toLocaleString('pt-BR');
 }
 
-export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
+export function RondaCard({ snapshot, produtos, onApontado, data, turno }: RondaCardProps) {
   const s = snapshot;
   const cfg = STATUS_CFG[s.status] ?? { label: s.status, pill: 'bg-slate-300 text-white', icon: Clock, dot: 'bg-slate-300' };
 
@@ -112,6 +114,8 @@ export function RondaCard({ snapshot, produtos, onApontado }: RondaCardProps) {
         qtdOP:       qtdOpVal   ? Number(qtdOpVal.replace(/\./g, '').replace(',', '.'))   : undefined,
         qtdAtual:    qtdNum     ?? undefined,
         observacao:  ficha      || undefined,
+        ...(data  ? { data }  : {}),
+        ...(turno ? { turno } : {}),
       });
       setApontado(true);
       setTimeout(() => setApontado(false), 2000);
