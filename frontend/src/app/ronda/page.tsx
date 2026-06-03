@@ -971,11 +971,16 @@ function TabApontar() {
           const ap = apts[maq];
           if (!ap) return Promise.resolve();
           return api.patch(`/snapshots/maquina/${maq}`, {
-            status:      ap.status || undefined,
-            qtdAtual:    ap.qtdAcumulada ? Number(ap.qtdAcumulada) : undefined,
-            observacao:  ap.observacao || undefined,
-            data:        data,
-            turno:       turno,
+            status:       ap.status       || undefined,
+            op:           ap.op           || undefined,
+            qtdOP:        ap.qtdOP        ? Number(ap.qtdOP)        : undefined,
+            qtdAtual:     ap.qtdAcumulada ? Number(ap.qtdAcumulada) : undefined,
+            cicloAtual:   ap.cicloReal    || undefined,
+            cavidadeReal: ap.cavidadeReal || undefined,
+            produtoNome:  ap.produto      || undefined,
+            observacao:   ap.observacao   || undefined,
+            data,
+            turno,
           });
         })
       );

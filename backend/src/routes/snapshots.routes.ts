@@ -143,7 +143,9 @@ snapshotsRouter.get('/maquina/:id', async (req, res, next) => {
 // PATCH /api/snapshots/maquina/:maquina — override manual de status/qtd
 snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
   try {
-    const { status, op, qtdOP, qtdAtual, observacao, liberarSync, data: dataParam, turno: turnoParam } = req.body;
+    const { status, op, qtdOP, qtdAtual, observacao, liberarSync,
+            cicloAtual, cavidadeReal, produtoNome,
+            data: dataParam, turno: turnoParam } = req.body;
 
     const data = dataParam ? new Date(dataParam + 'T00:00:00') : new Date();
     data.setHours(0, 0, 0, 0);
@@ -169,22 +171,37 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
       orderBy: { capturadoEm: 'desc' },
     });
 
-    if (existing) {
-      // Atualiza apenas os snapshots do turno selecionado
-      await prisma.snapshotTurno.updateMany({
-        where: { maquina: req.params.maquina, data, turno: turnoAlvo },
-        data: {
-          ...(status !== undefined ? { status: status as StatusOperacional } : {}),
-          ...(op     !== undefined ? { op }                                  : {}),
-          manualOverride: liberarSync ? false : true,
-        },
+    // Busca produtoId pelo nome (se informado)
+    let produtoId: string | null = null;
+    if (produtoNome) {
+      const prod = await prisma.produto.findFirst({
+        where: { descricao: { equals: produtoNome, mode: 'insensitive' } },
+        select: { id: true },
       });
+      if (!prod) {
+        const prodParcial = await prisma.produto.findFirst({
+          where: { descricao: { contains: produtoNome, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        produtoId = prodParcial?.id ?? null;
+      } else {
+        produtoId = prod.id;
+      }
+    }
+
+    if (existing) {
       const updated = await prisma.snapshotTurno.update({
         where: { id: existing.id },
         data: {
-          ...(qtdOP      !== undefined ? { qtdOP:     Number(qtdOP)    } : {}),
-          ...(qtdAtual   !== undefined ? { qtdAtual:  Number(qtdAtual) } : {}),
-          ...(observacao !== undefined ? { observacao }                   : {}),
+          ...(status      !== undefined ? { status:      status as StatusOperacional } : {}),
+          ...(op          !== undefined ? { op }                                       : {}),
+          ...(qtdOP       !== undefined ? { qtdOP:       Number(qtdOP)    }           : {}),
+          ...(qtdAtual    !== undefined ? { qtdAtual:    Number(qtdAtual) }           : {}),
+          ...(cicloAtual  !== undefined && cicloAtual !== '' ? { cicloAtual:  Number(cicloAtual)  } : {}),
+          ...(cavidadeReal !== undefined && cavidadeReal !== '' ? { cavidadeReal: Number(cavidadeReal) } : {}),
+          ...(observacao  !== undefined ? { observacao }                              : {}),
+          ...(produtoNome !== undefined ? { produtoNome, produtoId }                 : {}),
+          manualOverride: liberarSync ? false : true,
           capturadoEm: new Date(),
         },
       });
@@ -195,13 +212,17 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
     const created = await prisma.snapshotTurno.create({
       data: {
         data,
-        turno: turnoAlvo,
-        maquina:       req.params.maquina,
-        status:        (status || 'INATIVA') as StatusOperacional,
-        op:            op         ?? null,
-        qtdOP:         qtdOP      != null ? Number(qtdOP)    : null,
-        qtdAtual:      qtdAtual   != null ? Number(qtdAtual) : null,
-        observacao:    observacao ?? null,
+        turno:       turnoAlvo,
+        maquina:     req.params.maquina,
+        status:      (status || 'INATIVA') as StatusOperacional,
+        op:          op          ?? null,
+        qtdOP:       qtdOP       != null ? Number(qtdOP)       : null,
+        qtdAtual:    qtdAtual    != null ? Number(qtdAtual)    : null,
+        cicloAtual:  cicloAtual  != null && cicloAtual  !== '' ? Number(cicloAtual)  : null,
+        cavidadeReal:cavidadeReal!= null && cavidadeReal !== '' ? Number(cavidadeReal): null,
+        produtoNome: produtoNome ?? null,
+        produtoId:   produtoId,
+        observacao:  observacao  ?? null,
         manualOverride: true,
       },
     });
