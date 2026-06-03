@@ -197,6 +197,10 @@ export async function deletarAlerta(id: string) {
   return api.delete(`/alertas/${id}`).then(r => r.data);
 }
 
+export async function deletarTodosAlertasLidos() {
+  return api.delete('/alertas/lidos').then(r => r.data);
+}
+
 export async function login(email: string, password: string) {
   const { data } = await api.post('/auth/login', { email, password });
   localStorage.setItem('operis_token', data.token);

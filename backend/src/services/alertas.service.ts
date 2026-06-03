@@ -168,6 +168,12 @@ const alertasService = {
     await prisma.alerta.delete({ where: { id } });
   },
 
+  // ── Deletar todos os lidos ────────────────────
+  async deletarTodosLidos(): Promise<number> {
+    const { count } = await prisma.alerta.deleteMany({ where: { lido: true } });
+    return count;
+  },
+
   // ── Contagem por severidade (para badges) ─────
   async contarNaoLidos(): Promise<{ total: number; critico: number; atencao: number; info: number }> {
     const [total, critico, atencao, info] = await Promise.all([

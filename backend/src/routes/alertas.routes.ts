@@ -47,6 +47,14 @@ alertasRouter.patch('/marcar-todos-lidos', authorize('ADMIN', 'SUPERVISOR'), asy
   } catch (e) { next(e); }
 });
 
+// DELETE /api/alertas/lidos  — apaga todos os alertas marcados como lido
+alertasRouter.delete('/lidos', authorize('ADMIN', 'SUPERVISOR'), async (_req, res, next) => {
+  try {
+    const count = await alertasService.deletarTodosLidos();
+    res.json({ ok: true, count });
+  } catch (e) { next(e); }
+});
+
 // DELETE /api/alertas/:id
 alertasRouter.delete('/:id', authorize('ADMIN', 'SUPERVISOR'), async (req, res, next) => {
   try {

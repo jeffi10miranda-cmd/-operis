@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAlertas, useContagemAlertas, marcarAlertaLido, marcarTodosAlertasLidos, deletarAlerta } from '@/lib/api';
+import { useAlertas, useContagemAlertas, marcarAlertaLido, marcarTodosAlertasLidos, deletarAlerta, deletarTodosAlertasLidos } from '@/lib/api';
 import { PageLoading } from '@/components/skeleton';
 import { AlertTriangle, Info, CheckCircle, Bell, Clock, Check, Trash2 } from 'lucide-react';
 
@@ -90,6 +90,11 @@ export default function AlertasPage() {
     catch { /* silent */ }
   }
 
+  async function handleDeletarLidos() {
+    try { await deletarTodosAlertasLidos(); await reloadAlertas(); await reloadContagem(); }
+    catch { /* silent */ }
+  }
+
   if (loadingCount && loadingList) return <PageLoading />;
 
   return (
@@ -140,6 +145,12 @@ export default function AlertasPage() {
           className="px-3 py-1 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-600 hover:border-green-400 hover:text-green-600 transition-colors flex items-center gap-1"
         >
           <Check size={11} /> Marcar todos como lido
+        </button>
+        <button
+          onClick={handleDeletarLidos}
+          className="px-3 py-1 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-600 hover:border-red-400 hover:text-red-600 transition-colors flex items-center gap-1"
+        >
+          <Trash2 size={11} /> Apagar todos os lidos
         </button>
       </div>
 
