@@ -8,11 +8,12 @@ import { Turno, StatusOperacional } from '@prisma/client';
 export const snapshotsRouter = Router();
 snapshotsRouter.use(authenticate);
 
-// GET /api/snapshots/hoje
-// Retorna todos os snapshots do dia atual (Central)
+// GET /api/snapshots/hoje?turno=X&data=YYYY-MM-DD
+// Retorna snapshots do dia (padrão: hoje) filtrados por turno opcional
 snapshotsRouter.get('/hoje', async (req, res, next) => {
   try {
-    const hoje = new Date();
+    const dataParam = req.query.data as string | undefined;
+    const hoje = dataParam ? new Date(dataParam + 'T00:00:00') : new Date();
     hoje.setHours(0, 0, 0, 0);
 
     const turno = req.query.turno as Turno | undefined;

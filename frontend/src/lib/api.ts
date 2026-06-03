@@ -68,8 +68,12 @@ export function useKPIs() {
   return useSWR(hasApiAccess() ? '/snapshots/kpis' : null, fetcher, { ...SILENT, refreshInterval: 30000 });
 }
 
-export function useSnapshotsHoje(turno?: string) {
-  const url = turno ? `/snapshots/hoje?turno=${turno}` : '/snapshots/hoje';
+export function useSnapshotsHoje(turno?: string, data?: string) {
+  const params = new URLSearchParams();
+  if (turno) params.set('turno', turno);
+  if (data) params.set('data', data);
+  const qs = params.toString();
+  const url = `/snapshots/hoje${qs ? `?${qs}` : ''}`;
   return useSWR(hasApiAccess() ? url : null, fetcher, { ...SILENT, refreshInterval: 30000 });
 }
 
