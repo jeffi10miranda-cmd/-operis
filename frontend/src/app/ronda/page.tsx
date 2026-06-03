@@ -973,6 +973,8 @@ function TabApontar() {
             status:      ap.status || undefined,
             qtdAtual:    ap.qtdAcumulada ? Number(ap.qtdAcumulada) : undefined,
             observacao:  ap.observacao || undefined,
+            data:        data,
+            turno:       turno,
           });
         })
       );

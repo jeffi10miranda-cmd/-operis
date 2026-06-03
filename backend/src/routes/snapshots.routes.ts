@@ -158,24 +158,27 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
       capturadoEm: new Date(), // garante que este snapshot seja o mais recente no dedup
     };
 
-    // Tenta encontrar snapshot existente para o dia (qualquer turno)
+    // Calcula turno pelo horário atual (fallback quando não enviado pelo cliente)
+    const h = new Date().getHours();
+    const turnoCalc: Turno = h >= 6 && h < 14 ? 'PRIMEIRO' : h >= 14 && h < 22 ? 'SEGUNDO' : 'TERCEIRO';
+    const turnoAlvo: Turno = (turnoParam as Turno) || turnoCalc;
+
+    // Busca snapshot existente filtrando pelo turno correto
     const existing = await prisma.snapshotTurno.findFirst({
-      where: { maquina: req.params.maquina, data },
+      where: { maquina: req.params.maquina, data, turno: turnoAlvo },
       orderBy: { capturadoEm: 'desc' },
     });
 
     if (existing) {
-      // Aplica status, op e manualOverride em TODOS os snapshots do dia
-      // (view "Todos" mostra cada turno separadamente — todos precisam refletir a mudança)
+      // Atualiza apenas os snapshots do turno selecionado
       await prisma.snapshotTurno.updateMany({
-        where: { maquina: req.params.maquina, data },
+        where: { maquina: req.params.maquina, data, turno: turnoAlvo },
         data: {
           ...(status !== undefined ? { status: status as StatusOperacional } : {}),
           ...(op     !== undefined ? { op }                                  : {}),
           manualOverride: liberarSync ? false : true,
         },
       });
-      // Atualiza qtd/observação e capturadoEm só no snapshot mais recente
       const updated = await prisma.snapshotTurno.update({
         where: { id: existing.id },
         data: {
@@ -188,15 +191,11 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
       return res.json(updated);
     }
 
-    // Sem snapshot existente — cria um novo com turno informado ou calculado
-    const h = new Date().getHours();
-    const turnoCalc: Turno = h >= 6 && h < 14 ? 'PRIMEIRO' : h >= 14 && h < 22 ? 'SEGUNDO' : 'TERCEIRO';
-    const turno: Turno = (turnoParam as Turno) || turnoCalc;
-
+    // Sem snapshot existente — cria um novo com o turno selecionado
     const created = await prisma.snapshotTurno.create({
       data: {
         data,
-        turno,
+        turno: turnoAlvo,
         maquina:       req.params.maquina,
         status:        (status || 'INATIVA') as StatusOperacional,
         op:            op         ?? null,
