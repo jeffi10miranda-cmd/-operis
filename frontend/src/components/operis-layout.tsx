@@ -9,7 +9,7 @@ import {
   LogOut, Menu, X, ChevronDown, ChevronLeft, User as UserIcon, Tv, Trash2, type LucideIcon,
 } from 'lucide-react';
 import { OperisLogoFull } from '@/components/operis-logo';
-import { logout, useAlertas, useAuthUser, useContagemAlertas, isPreviewModeEnabled, deletarAlerta } from '@/lib/api';
+import { logout, useAlertas, useAuthUser, useContagemAlertas, isPreviewModeEnabled, deletarAlerta, marcarTodosAlertasLidos, deletarTodosAlertasLidos } from '@/lib/api';
 import type { Alerta, PaginatedResponse, User } from '@/types/operis';
 
 // Mock para modo preview
@@ -130,10 +130,22 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
   const router    = useRouter();
   const { data: contagem, mutate: mutateContagem } = useContagemAlertas();
   const { data: alertasData, mutate: mutateAlerts } = useAlertas({ lido: false, limit: 6 });
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
   async function handleBellDelete(id: string) {
+    setHiddenIds(prev => new Set([...prev, id]));
     try { await deletarAlerta(id); await mutateAlerts(); await mutateContagem(); }
-    catch { /* silent */ }
+    catch { setHiddenIds(prev => { const s = new Set(prev); s.delete(id); return s; }); }
+  }
+
+  async function handleBellDeleteAll() {
+    try {
+      await marcarTodosAlertasLidos();
+      await deletarTodosAlertasLidos();
+      setHiddenIds(new Set());
+      await mutateAlerts();
+      await mutateContagem();
+    } catch { /* silent */ }
   }
   const { data: authUser } = useAuthUser();
 
@@ -146,7 +158,7 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
   // Alertas recentes: usa dado real ou mock
   const apiAlerts = (alertasData as PaginatedResponse<Alerta> | undefined)?.items;
   const recentAlerts = apiAlerts ?? [];
-  const bellAlerts = apiAlerts
+  const bellAlerts = (apiAlerts
     ? recentAlerts.map((a) => ({
         id: a.id,
         machine: a.maquina,
@@ -155,7 +167,7 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
         sev: a.severidade === 'CRITICO' ? 'danger' : a.severidade === 'ATENCAO' ? 'warning' : 'info',
         dot: a.severidade === 'CRITICO' ? 'bg-red-500' : a.severidade === 'ATENCAO' ? 'bg-amber-400' : 'bg-blue-400',
       }))
-    : MOCK_ALERTS;
+    : MOCK_ALERTS).filter(a => !hiddenIds.has(a.id));
 
   // Usuário: usa dado real ou mock
   const user = (authUser as User | undefined) ?? (isPreview ? MOCK_USER : undefined);
@@ -399,6 +411,15 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
                       >
                         Ver todos os alertas
                       </Link>
+                      {bellAlerts.length > 0 && (
+                        <button
+                          onClick={handleBellDeleteAll}
+                          className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition-colors flex-shrink-0"
+                          title="Apagar todos os alertas"
+                        >
+                          <Trash2 size={12} /> Apagar tudo
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
