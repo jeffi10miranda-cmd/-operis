@@ -79,9 +79,11 @@ export function RondaCard({ snapshot, produtos, onApontado, data, turno }: Ronda
   const [salvando,     setSalvando]      = useState(false);
   const [apontado,     setApontado]      = useState(false);
   const [focusedNum,   setFocusedNum]    = useState<string | null>(null);
+  const [dirty,        setDirty]         = useState(false);
 
-  // Atualiza campos quando o snapshot muda (nova sincronização)
+  // Atualiza campos quando a máquina muda ou quando não há edições locais pendentes
   useEffect(() => {
+    if (dirty) return;
     setStatus(s.status);
     setProduto(s.produtoNome || s.produto?.descricao || '');
     setOpNum(s.op || '');
@@ -90,7 +92,7 @@ export function RondaCard({ snapshot, produtos, onApontado, data, turno }: Ronda
     setCavReal(s.cavidadeReal != null ? String(s.cavidadeReal) : '');
     setQtdAcum(s.qtdAtual != null ? String(s.qtdAtual) : '');
     setFicha(s.observacao || '');
-  }, [s.maquina, s.status]);
+  }, [s.maquina, s.status, dirty]);
 
   const cfgAtual = STATUS_CFG[status] ?? cfg;
   const ativo = status !== 'INATIVA';
@@ -118,6 +120,7 @@ export function RondaCard({ snapshot, produtos, onApontado, data, turno }: Ronda
         ...(turno ? { turno } : {}),
       });
       setApontado(true);
+      setDirty(false);
       setTimeout(() => setApontado(false), 2000);
       onApontado?.();
     } catch { /* silent */ }
@@ -142,7 +145,7 @@ export function RondaCard({ snapshot, produtos, onApontado, data, turno }: Ronda
             <span className="machine-name font-bold">{s.maquina}</span>
           </div>
           <button
-            onClick={() => ativo ? setShowModal(true) : setStatus('EM_PRODUCAO')}
+            onClick={() => { setDirty(true); ativo ? setShowModal(true) : setStatus('EM_PRODUCAO'); }}
             className={`p-1.5 rounded-lg transition-colors ${ativo ? 'text-green-500 hover:bg-red-50 hover:text-red-500' : 'text-slate-400 hover:bg-green-50 hover:text-green-500'}`}
             title={ativo ? 'Alterar status' : 'Ligar'}
           >
@@ -152,7 +155,7 @@ export function RondaCard({ snapshot, produtos, onApontado, data, turno }: Ronda
 
         {/* Status — clicável */}
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => { setDirty(true); setShowModal(true); }}
           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide w-fit ${cfgAtual.pill}`}
         >
           {cfgAtual.label}
@@ -163,7 +166,7 @@ export function RondaCard({ snapshot, produtos, onApontado, data, turno }: Ronda
           <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Produto</p>
           <select
             value={produto}
-            onChange={e => setProduto(e.target.value)}
+            onChange={e => { setDirty(true); setProduto(e.target.value); }}
             className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-blue-400"
           >
             <option value="">Selecionar...</option>
