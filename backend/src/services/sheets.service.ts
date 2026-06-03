@@ -30,6 +30,114 @@ function getAuth() {
   });
 }
 
+function getAuthWrite() {
+  return new google.auth.GoogleAuth({
+    credentials: {
+      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      private_key:  process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    },
+    scopes: [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive.file',
+    ],
+  });
+}
+
+type CellValue = string | number | null;
+
+function cell(v: CellValue): object {
+  if (v === null || v === undefined || v === '') return { userEnteredValue: { stringValue: '' } };
+  if (typeof v === 'number') return { userEnteredValue: { numberValue: v } };
+  return { userEnteredValue: { stringValue: String(v) } };
+}
+
+export async function exportarHistoricoParaSheets(params: {
+  titulo:  string;
+  linhas:  Array<{
+    idx: number; maquina: string; turno: string; op: string | null;
+    descricao: string | null; qtdOP: number | null; qtdAtual: number | null;
+    ciclo: number | null; cicloReal: number | null;
+    cav: number | null; cavFec: number | null; status: string;
+  }>;
+  emailCompartilhar?: string;
+}): Promise<string> {
+  const auth    = getAuthWrite();
+  const sheets  = google.sheets({ version: 'v4', auth });
+  const drive   = google.drive({ version: 'v3', auth });
+
+  const HEADER_BG = { red: 0.102, green: 0.227, blue: 0.165 }; // #1a3a2a
+
+  const headerRow = {
+    values: ['#','Máq','Turno','OP','Descrição','Qtd OP','Qtd Atual','Ciclo','C Real','Cav','Cav Fec','Status']
+      .map(h => ({
+        userEnteredValue: { stringValue: h },
+        userEnteredFormat: {
+          backgroundColor: HEADER_BG,
+          textFormat: { foregroundColor: { red:1,green:1,blue:1 }, bold: true },
+          horizontalAlignment: 'CENTER',
+        },
+      })),
+  };
+
+  const TURNO_LABEL: Record<string,string> = { PRIMEIRO:'1º Turno', SEGUNDO:'2º Turno', TERCEIRO:'3º Turno' };
+  const STATUS_LABEL: Record<string,string> = {
+    EM_PRODUCAO:'Ok', SETUP:'Setup', SETUP_DE_COR:'Setup de Cor',
+    REGULAGEM:'Regulagem', MANUTENCAO:'Manutenção', FERRAMENTARIA:'Ferramentaria',
+    AGUARDANDO_MP:'Aguard. MP', AGUARDANDO_TECNICO:'Aguard. Técnico',
+    AGUARDANDO_LIBERACAO:'Aguard. Liberação', AGUARDANDO_ESTUFAGEM:'Aguard. Estufagem',
+    REINICIO:'Reinício', TRYOUT:'Tryout', TROCA_DE_VERSAO:'Troca de Versão',
+    FORA_DA_COR_PADRAO:'Fora da Cor', INATIVA:'Inativa',
+  };
+
+  const dataRows = params.linhas.map((l, i) => ({
+    values: [
+      cell(l.idx),
+      cell(l.maquina.replace(/\D+/g,'')),
+      cell(TURNO_LABEL[l.turno] ?? l.turno),
+      cell(l.op),
+      cell(l.descricao),
+      cell(l.qtdOP),
+      cell(l.qtdAtual),
+      cell(l.ciclo),
+      cell(l.cicloReal),
+      cell(l.cav),
+      cell(l.cavFec),
+      cell(STATUS_LABEL[l.status] ?? l.status),
+    ],
+    // Alterna fundo branco/cinza
+    ...(i % 2 !== 0 ? { } : {}),
+  }));
+
+  const result = await sheets.spreadsheets.create({
+    requestBody: {
+      properties: { title: params.titulo, locale: 'pt_BR' },
+      sheets: [{
+        properties: { title: 'Histórico', gridProperties: { frozenRowCount: 1 } },
+        data: [{ startRow: 0, startColumn: 0, rowData: [headerRow, ...dataRows] }],
+      }],
+    },
+  });
+
+  const spreadsheetId = result.data.spreadsheetId!;
+
+  // Compartilha com qualquer pessoa que tiver o link
+  await drive.permissions.create({
+    fileId: spreadsheetId,
+    requestBody: { role: 'reader', type: 'anyone' },
+  });
+
+  // Compartilha com email específico se fornecido
+  if (params.emailCompartilhar) {
+    await drive.permissions.create({
+      fileId: spreadsheetId,
+      requestBody: { role: 'writer', type: 'user', emailAddress: params.emailCompartilhar },
+    });
+  }
+
+  logger.info(`📊 Planilha exportada: ${result.data.spreadsheetUrl}`);
+  return result.data.spreadsheetUrl!;
+}
+
 const STATUS_MAP: Record<string, string> = {
   'ok':                       'EM_PRODUCAO',
   'em producao':              'EM_PRODUCAO',

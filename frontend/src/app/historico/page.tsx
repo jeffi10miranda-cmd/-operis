@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useHistorico } from '@/lib/api';
-import { Search } from 'lucide-react';
+import { useHistorico, api } from '@/lib/api';
+import { Search, Sheet, Loader2, ExternalLink } from 'lucide-react';
 
 type Turno = 'TODOS' | 'PRIMEIRO' | 'SEGUNDO' | 'TERCEIRO';
 
@@ -71,12 +71,33 @@ function fmtDec(v: number | null) {
 
 export default function HistoricoPage() {
   const hoje  = new Date().toISOString().slice(0, 10);
-  const [data,   setData]   = useState(hoje);
-  const [turno,  setTurno]  = useState<Turno>('TODOS');
-  const [busca,  setBusca]  = useState('');
+  const [data,        setData]        = useState(hoje);
+  const [turno,       setTurno]       = useState<Turno>('TODOS');
+  const [busca,       setBusca]       = useState('');
+  const [exportando,  setExportando]  = useState(false);
+  const [sheetUrl,    setSheetUrl]    = useState<string | null>(null);
+  const [exportError, setExportError] = useState('');
 
   const { data: raw, isLoading } = useHistorico(data, turno);
   const linhas: LinhaHistorico[] = raw ?? [];
+
+  async function exportarParaSheets() {
+    setExportando(true);
+    setExportError('');
+    setSheetUrl(null);
+    try {
+      const { data: res } = await api.post('/sheets/exportar-historico', {
+        data,
+        turno: turno === 'TODOS' ? undefined : turno,
+      });
+      setSheetUrl(res.url);
+      window.open(res.url, '_blank');
+    } catch {
+      setExportError('Erro ao exportar. Verifique as credenciais do Google.');
+    } finally {
+      setExportando(false);
+    }
+  }
 
   const filtradas = useMemo(() => {
     if (!busca.trim()) return linhas;
@@ -131,9 +152,31 @@ export default function HistoricoPage() {
           </div>
         </div>
 
-        <div className="ml-auto text-right">
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider">Registros</p>
-          <p className="text-lg font-bold text-operis-dark">{filtradas.length}</p>
+        <div className="ml-auto flex items-end gap-3">
+          <div className="text-right">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Registros</p>
+            <p className="text-lg font-bold text-operis-dark">{filtradas.length}</p>
+          </div>
+
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={exportarParaSheets}
+              disabled={exportando || linhas.length === 0}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1a7a40] text-white text-sm font-semibold hover:bg-[#166633] disabled:opacity-50 transition-colors"
+            >
+              {exportando
+                ? <><Loader2 size={15} className="animate-spin" /> Exportando...</>
+                : <><Sheet size={15} /> Exportar para Google Sheets</>
+              }
+            </button>
+            {sheetUrl && (
+              <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[11px] text-green-700 font-semibold hover:underline">
+                <ExternalLink size={11} /> Abrir planilha criada
+              </a>
+            )}
+            {exportError && <p className="text-[11px] text-red-500">{exportError}</p>}
+          </div>
         </div>
       </div>
 
