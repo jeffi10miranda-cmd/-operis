@@ -123,15 +123,6 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
     const data = dataParam ? new Date(dataParam + 'T00:00:00') : new Date();
     data.setHours(0, 0, 0, 0);
 
-    // Determina turno pelo horário atual se não informado
-    function turnoAtual(): Turno {
-      const h = new Date().getHours();
-      if (h >= 6  && h < 14) return 'PRIMEIRO';
-      if (h >= 14 && h < 22) return 'SEGUNDO';
-      return 'TERCEIRO';
-    }
-    const turno: Turno = (turnoParam as Turno) || turnoAtual();
-
     const updateData = {
       ...(status     !== undefined ? { status: status as StatusOperacional } : {}),
       ...(op         !== undefined ? { op }                                  : {}),
@@ -141,23 +132,35 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
       manualOverride: liberarSync ? false : true,
     };
 
-    // Upsert: atualiza se existe, cria se não existe
-    const updated = await prisma.snapshotTurno.upsert({
-      where: { data_turno_maquina: { data, turno, maquina: req.params.maquina } },
-      update: updateData,
-      create: {
+    // Tenta encontrar snapshot existente para o dia (qualquer turno)
+    const existing = await prisma.snapshotTurno.findFirst({
+      where: { maquina: req.params.maquina, data },
+      orderBy: { capturadoEm: 'desc' },
+    });
+
+    if (existing) {
+      const updated = await prisma.snapshotTurno.update({ where: { id: existing.id }, data: updateData });
+      return res.json(updated);
+    }
+
+    // Sem snapshot existente — cria um novo com turno informado ou calculado
+    const h = new Date().getHours();
+    const turnoCalc: Turno = h >= 6 && h < 14 ? 'PRIMEIRO' : h >= 14 && h < 22 ? 'SEGUNDO' : 'TERCEIRO';
+    const turno: Turno = (turnoParam as Turno) || turnoCalc;
+
+    const created = await prisma.snapshotTurno.create({
+      data: {
         data,
         turno,
         maquina:       req.params.maquina,
         status:        (status || 'INATIVA') as StatusOperacional,
-        op:            op            ?? null,
-        qtdOP:         qtdOP         != null ? Number(qtdOP)         : null,
-        qtdAtual:      qtdAtual      != null ? Number(qtdAtual)      : null,
-        observacao:    observacao    ?? null,
+        op:            op         ?? null,
+        qtdOP:         qtdOP      != null ? Number(qtdOP)    : null,
+        qtdAtual:      qtdAtual   != null ? Number(qtdAtual) : null,
+        observacao:    observacao ?? null,
         manualOverride: true,
       },
     });
-
-    res.json(updated);
+    res.json(created);
   } catch (e) { next(e); }
 });
