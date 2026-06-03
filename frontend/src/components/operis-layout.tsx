@@ -6,10 +6,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { TurnoProvider, useTurno, type TurnoValue } from '@/contexts/turno-context';
 import {
   Home, Calendar, BarChart3, Bell, Settings,
-  LogOut, Menu, X, ChevronDown, ChevronLeft, User as UserIcon, Tv, type LucideIcon,
+  LogOut, Menu, X, ChevronDown, ChevronLeft, User as UserIcon, Tv, Trash2, type LucideIcon,
 } from 'lucide-react';
 import { OperisLogoFull } from '@/components/operis-logo';
-import { logout, useAlertas, useAuthUser, useContagemAlertas, isPreviewModeEnabled } from '@/lib/api';
+import { logout, useAlertas, useAuthUser, useContagemAlertas, isPreviewModeEnabled, deletarAlerta } from '@/lib/api';
 import type { Alerta, PaginatedResponse, User } from '@/types/operis';
 
 // Mock para modo preview
@@ -61,11 +61,80 @@ function formatAlertTime(iso: string) {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+function BellAlertItem({ a, onDelete }: { a: { id: string; machine: string; title: string; time: string; dot: string }; onDelete: () => void }) {
+  const [tx, setTx]           = useState(0);
+  const [settling, setSettling] = useState(false);
+  const startX  = useRef(0);
+  const startY  = useRef(0);
+  const horiz   = useRef(false);
+  const active  = useRef(false);
+
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    horiz.current  = false;
+    active.current = false;
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+    if (!active.current && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+      horiz.current  = Math.abs(dx) > Math.abs(dy);
+      active.current = true;
+    }
+    if (horiz.current && dx < 0) setTx(Math.max(dx, -90));
+  }
+
+  function onTouchEnd() {
+    setSettling(true);
+    if (tx < -55) { onDelete(); }
+    else           { setTx(0); }
+    setTimeout(() => setSettling(false), 200);
+  }
+
+  return (
+    <div className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-red-500 flex items-center justify-end pr-4 pointer-events-none">
+        <Trash2 size={14} className="text-white" />
+      </div>
+      <div
+        style={{ transform: `translateX(${tx}px)`, transition: settling ? 'transform 0.2s ease' : 'none' }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        className="relative bg-white flex items-start gap-3 px-4 py-3 hover:bg-gray-50 group cursor-default"
+      >
+        <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${a.dot}`} />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-operis-dark">{a.machine}</p>
+          <p className="text-xs text-gray-500 truncate">{a.title}</p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-[10px] text-gray-400">{a.time}</span>
+          <button
+            onClick={onDelete}
+            className="hidden group-hover:flex p-0.5 rounded text-gray-300 hover:text-red-500 transition-colors"
+            title="Apagar"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OperisLayoutInner({ children }: { children: ReactNode }) {
   const pathname  = usePathname();
   const router    = useRouter();
-  const { data: contagem } = useContagemAlertas();
-  const { data: alertasData } = useAlertas({ lido: false, limit: 6 });
+  const { data: contagem, mutate: mutateContagem } = useContagemAlertas();
+  const { data: alertasData, mutate: mutateAlerts } = useAlertas({ lido: false, limit: 6 });
+
+  async function handleBellDelete(id: string) {
+    try { await deletarAlerta(id); await mutateAlerts(); await mutateContagem(); }
+    catch { /* silent */ }
+  }
   const { data: authUser } = useAuthUser();
 
   const isPreview = isPreviewModeEnabled();
@@ -317,14 +386,7 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
                       {bellAlerts.length === 0 ? (
                         <p className="px-4 py-6 text-xs text-gray-400 text-center">Nenhum alerta pendente</p>
                       ) : bellAlerts.map((a) => (
-                        <div key={a.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-                          <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${a.dot}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-operis-dark">{a.machine}</p>
-                            <p className="text-xs text-gray-500 truncate">{a.title}</p>
-                          </div>
-                          <span className="text-[10px] text-gray-400 flex-shrink-0">{a.time}</span>
-                        </div>
+                        <BellAlertItem key={a.id} a={a} onDelete={() => handleBellDelete(a.id)} />
                       ))}
                     </div>
 
