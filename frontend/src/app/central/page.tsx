@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { MachineCard } from '@/components/machine-card';
 import { CentralSkeleton } from '@/components/skeleton';
-import { useKPIs, useSnapshotsHoje } from '@/lib/api';
+import { useKPIs, useSnapshotsHoje, useAlertas } from '@/lib/api';
 import { useTurno } from '@/contexts/turno-context';
 import { useSocket } from '@/hooks/useSocket';
 import type { KPIsData, Snapshot } from '@/types/operis';
@@ -136,6 +136,7 @@ export default function CentralPage() {
   const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO');
   const { data: t2Raw, mutate: reloadT2 } = useSnapshotsHoje('SEGUNDO');
   const { data: t3Raw, mutate: reloadT3 } = useSnapshotsHoje('TERCEIRO');
+  const { data: alertasData } = useAlertas({ lido: false, limit: 5 });
 
   function reloadAll() {
     reloadT1(undefined, { revalidate: true });
@@ -315,32 +316,36 @@ export default function CentralPage() {
           )}
         </div>
 
-        <div className="card p-3 sm:p-5">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h2 className="text-base font-bold text-operis-dark">Alertas importantes</h2>
-            <Link href="/alertas" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Ver todos</Link>
-          </div>
-          <div className="space-y-1">
-            {MOCK_ALERTS.map((a) => {
-              const Ico = alertIcons[a.severity] ?? AlertCircle;
-              return (
-                <div key={a.id} className="alert-item-row">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${alertIconBg[a.severity]}`}>
-                    <Ico size={16} className="text-white" />
+        {alertasData?.items?.length > 0 && (
+          <div className="card p-3 sm:p-5">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-base font-bold text-operis-dark">Alertas importantes</h2>
+              <Link href="/alertas" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Ver todos</Link>
+            </div>
+            <div className="space-y-1">
+              {alertasData.items.map((a: { id: string; maquina: string; titulo: string; severidade: string; tipo: string; criadoEm: string }) => {
+                const sev = a.severidade === 'CRITICO' ? 'danger' : a.severidade === 'ATENCAO' ? 'warning' : 'info';
+                const Ico = alertIcons[sev] ?? AlertCircle;
+                const hora = new Date(a.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div key={a.id} className="alert-item-row">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${alertIconBg[sev]}`}>
+                      <Ico size={16} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-operis-dark">{a.maquina}</p>
+                      <p className="text-[11px] text-gray-500 leading-tight">{a.titulo}</p>
+                    </div>
+                    <span className="text-[11px] text-gray-400 whitespace-nowrap">{hora}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-operis-dark">{a.machine}</p>
-                    <p className="text-[11px] text-gray-500 leading-tight">{a.title}</p>
-                  </div>
-                  <span className="text-[11px] text-gray-400 whitespace-nowrap">{a.time}</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <Link href="/alertas" className="mt-3 block w-full text-center text-xs font-semibold text-blue-600 hover:text-blue-700">
+              Ver todos os alertas
+            </Link>
           </div>
-          <Link href="/alertas" className="mt-3 block w-full text-center text-xs font-semibold text-blue-600 hover:text-blue-700">
-            Ver todos os alertas
-          </Link>
-        </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">

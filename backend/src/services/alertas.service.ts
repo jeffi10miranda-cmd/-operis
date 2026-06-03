@@ -65,7 +65,17 @@ const alertasService = {
       });
     }
 
+    // Deduplicação: não recria alerta se já existe um não-lido do mesmo tipo/máquina no último turno (4h)
     for (const alerta of alertas) {
+      const recente = await prisma.alerta.findFirst({
+        where: {
+          maquina: snapshot.maquina,
+          tipo:    alerta.tipo,
+          lido:    false,
+          criadoEm: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+        },
+      });
+      if (recente) continue;
       await this.criarAlerta({ ...alerta, snapshotId: snapshot.id, maquina: snapshot.maquina });
     }
   },
