@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useHistorico, api } from '@/lib/api';
-import { Search, Sheet, Loader2, ExternalLink } from 'lucide-react';
+import { useHistorico } from '@/lib/api';
+import { Search, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 type Turno = 'TODOS' | 'PRIMEIRO' | 'SEGUNDO' | 'TERCEIRO';
 
@@ -74,32 +75,42 @@ export default function HistoricoPage() {
   const [data,        setData]        = useState(hoje);
   const [turno,       setTurno]       = useState<Turno>('TODOS');
   const [busca,       setBusca]       = useState('');
-  const [exportando,  setExportando]  = useState(false);
-  const [sheetUrl,    setSheetUrl]    = useState<string | null>(null);
-  const [exportError, setExportError] = useState('');
 
   const { data: raw, isLoading } = useHistorico(data, turno);
   const linhas: LinhaHistorico[] = raw ?? [];
 
-  async function exportarParaSheets() {
-    setExportando(true);
-    setExportError('');
-    setSheetUrl(null);
-    try {
-      const { data: res } = await api.post('/sheets/exportar-historico', {
-        data,
-        turno: turno === 'TODOS' ? undefined : turno,
-      });
-      setSheetUrl(res.url);
-      window.open(res.url, '_blank');
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.message
-               || (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.error
-               || 'Erro ao exportar. Verifique as credenciais do Google.';
-      setExportError(msg);
-    } finally {
-      setExportando(false);
-    }
+  function exportarExcel() {
+    const dataFmt = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR');
+    const turnoFmt = TURNO_LABEL[turno] ?? turno;
+
+    const rows = filtradas.map(l => ({
+      '#':         l.idx,
+      'Máq':       l.maquina.replace(/\D+/g, ''),
+      'Turno':     TURNO_LABEL[l.turno] ?? l.turno,
+      'OP':        l.op ?? '',
+      'Descrição': l.descricao ?? '',
+      'Qtd OP':    l.qtdOP ?? '',
+      'Qtd Atual': l.qtdAtual ?? '',
+      'Ciclo':     l.ciclo ?? '',
+      'C Real':    l.cicloReal ?? '',
+      'Cav':       l.cav ?? '',
+      'Cav Fec':   l.cavFec ?? '',
+      'Status':    STATUS_LABEL[l.status] ?? l.status,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Larguras das colunas
+    ws['!cols'] = [
+      { wch: 4 }, { wch: 5 }, { wch: 10 }, { wch: 8 }, { wch: 36 },
+      { wch: 10 }, { wch: 10 }, { wch: 7 }, { wch: 7 }, { wch: 6 }, { wch: 8 }, { wch: 18 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
+
+    const nomeArquivo = `Historico_OPERIS_${data}_${turno === 'TODOS' ? 'Todos' : turnoFmt.replace(/\s/g,'')}.xlsx`;
+    XLSX.writeFile(wb, nomeArquivo);
   }
 
   const filtradas = useMemo(() => {
@@ -161,25 +172,13 @@ export default function HistoricoPage() {
             <p className="text-lg font-bold text-operis-dark">{filtradas.length}</p>
           </div>
 
-          <div className="flex flex-col items-end gap-1">
-            <button
-              onClick={exportarParaSheets}
-              disabled={exportando || linhas.length === 0}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1a7a40] text-white text-sm font-semibold hover:bg-[#166633] disabled:opacity-50 transition-colors"
-            >
-              {exportando
-                ? <><Loader2 size={15} className="animate-spin" /> Exportando...</>
-                : <><Sheet size={15} /> Exportar para Google Sheets</>
-              }
-            </button>
-            {sheetUrl && (
-              <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[11px] text-green-700 font-semibold hover:underline">
-                <ExternalLink size={11} /> Abrir planilha criada
-              </a>
-            )}
-            {exportError && <p className="text-[11px] text-red-500">{exportError}</p>}
-          </div>
+          <button
+            onClick={exportarExcel}
+            disabled={filtradas.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1d6f42] text-white text-sm font-semibold hover:bg-[#155c36] disabled:opacity-50 transition-colors"
+          >
+            <FileSpreadsheet size={15} /> Exportar Excel
+          </button>
         </div>
       </div>
 

@@ -19,7 +19,8 @@
     "react-dom": "^18.3.0",
     "recharts": "^2.12.3",
     "socket.io-client": "^4.7.4",
-    "swr": "^2.2.5"
+    "swr": "^2.2.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
