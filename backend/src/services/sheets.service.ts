@@ -82,7 +82,12 @@ function formatarDataAba(date: Date): string {
   return `${dd}-${mm}-${yy}`;
 }
 
-// Descobre o nome da aba de hoje para um turno (ex: "1º T 02-06-26")
+// Normaliza caracteres de grau/ordinal para comparação (° U+00B0 e º U+00BA são visualmente iguais)
+function normalizaGrau(s: string): string {
+  return s.replace(/[°º]/g, '°');
+}
+
+// Descobre o nome da aba de hoje para um turno (ex: "1°T 02-06-26")
 async function descobrirAbaHoje(spreadsheetId: string, prefixoTurno: string): Promise<string | null> {
   try {
     const auth  = getAuth();
@@ -90,17 +95,16 @@ async function descobrirAbaHoje(spreadsheetId: string, prefixoTurno: string): Pr
     const meta   = await sheets.spreadsheets.get({ spreadsheetId });
     const abas   = meta.data.sheets?.map(s => s.properties?.title ?? '') ?? [];
     const hoje   = formatarDataAba(new Date());
+    const prefNorm = normalizaGrau(prefixoTurno);
 
-    // Log para debug: mostra abas disponíveis
-    logger.info(`Abas disponíveis na planilha: ${abas.map(a => `"${a}"`).join(', ')}`);
     logger.info(`Procurando prefixo: "${prefixoTurno}" | Data hoje: "${hoje}"`);
 
-    // Tenta encontrar aba exata do dia (ex: "1º T 02-06-26")
-    const abaHoje = abas.find(a => a.startsWith(prefixoTurno) && a.includes(hoje));
+    // Tenta encontrar aba exata do dia (ex: "1°T 03-06-26")
+    const abaHoje = abas.find(a => normalizaGrau(a).startsWith(prefNorm) && a.includes(hoje));
     if (abaHoje) return abaHoje;
 
-    // Fallback: primeira aba que começa com o prefixo do turno
-    const fallback = abas.find(a => a.startsWith(prefixoTurno));
+    // Fallback: aba mais recente que começa com o prefixo do turno
+    const fallback = abas.find(a => normalizaGrau(a).startsWith(prefNorm));
     if (fallback) {
       logger.warn(`Aba de hoje (${prefixoTurno} ${hoje}) não encontrada. Usando: "${fallback}"`);
       return fallback;
@@ -182,9 +186,9 @@ export async function lerTodosTurnos(): Promise<{
 }> {
   const spreadsheetId = process.env.SHEET_ID_TURNO_1!; // mesma planilha para os 3 turnos
 
-  const prefixo1 = process.env.SHEET_TAB_TURNO_1 ?? '1º T';
-  const prefixo2 = process.env.SHEET_TAB_TURNO_2 ?? '2º T';
-  const prefixo3 = process.env.SHEET_TAB_TURNO_3 ?? '3º T';
+  const prefixo1 = process.env.SHEET_TAB_TURNO_1 ?? '1°';
+  const prefixo2 = process.env.SHEET_TAB_TURNO_2 ?? '2°';
+  const prefixo3 = process.env.SHEET_TAB_TURNO_3 ?? '3°';
 
   const [aba1, aba2, aba3] = await Promise.all([
     descobrirAbaHoje(spreadsheetId, prefixo1),
