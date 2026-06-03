@@ -19,6 +19,9 @@ import { statsRouter } from './routes/stats.routes';
 
 export const app = express();
 
+// Render e outros proxies reversos definem X-Forwarded-For
+app.set('trust proxy', 1);
+
 // ── Segurança ──────────────────────────────────
 app.use(helmet());
 
