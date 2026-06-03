@@ -224,15 +224,14 @@ export default function CentralPage() {
 
           {/* Barra de busca e filtros */}
           {(() => {
-            const all = [...t1, ...t2, ...t3];
             const filterTabs = [
-              { id: 'TODOS',       label: 'Todos',        count: all.length },
-              { id: 'EM_PRODUCAO', label: 'Em Produção',  count: all.filter(m => m.status === 'EM_PRODUCAO').length },
-              { id: 'SETUP',       label: 'Setup',        count: all.filter(m => STATUS_GROUPS.SETUP.includes(m.status)).length },
-              { id: 'REGULAGEM',   label: 'Regulagem',    count: all.filter(m => STATUS_GROUPS.REGULAGEM.includes(m.status)).length },
-              { id: 'AGUARDANDO',  label: 'Aguardando',   count: all.filter(m => STATUS_GROUPS.AGUARDANDO.includes(m.status)).length },
-              { id: 'PARADAS',     label: 'Paradas',      count: all.filter(m => STATUS_GROUPS.PARADAS.includes(m.status)).length },
-              { id: 'INATIVA',     label: 'Inativas',     count: all.filter(m => m.status === 'INATIVA').length },
+              { id: 'TODOS',       label: 'Todos',        count: kpis.total },
+              { id: 'EM_PRODUCAO', label: 'Em Produção',  count: kpis.emProducao },
+              { id: 'SETUP',       label: 'Setup',        count: kpis.setup },
+              { id: 'REGULAGEM',   label: 'Regulagem',    count: kpis.regulagem },
+              { id: 'AGUARDANDO',  label: 'Aguardando',   count: kpis.aguardando },
+              { id: 'PARADAS',     label: 'Paradas',      count: kpis.paradas },
+              { id: 'INATIVA',     label: 'Inativas',     count: kpis.inativas },
             ];
             return (
               <div className="flex flex-col gap-2">
