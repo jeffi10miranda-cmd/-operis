@@ -156,14 +156,14 @@ function mapComparativoRow(row: ComparativoApiRow) {
 
 export default function ComparativosPage() {
   const [tab, setTab]             = useState<Tab>('Resumo geral');
-  const [tipoAnalise, setTipo]    = useState('Comparativo de dias');
+  const [tipoAnalise, setTipo]    = useState('Dia');
   const [periodoA, setPeriodoA]   = useState('2026-05-19');
   const [periodoB, setPeriodoB]   = useState('2026-05-20');
   const [page, setPage]           = useState(1);
   const PER_PAGE = 8;
 
-  const isDias = tipoAnalise === 'Comparativo de dias';
-  const isTurnos = tipoAnalise === 'Comparativo de turnos';
+  const isDias   = tipoAnalise === 'Dia';
+  const isTurnos = tipoAnalise === 'Turnos';
 
   const { data: diasData, isLoading: diasLoading, error: diasError } = useComparativoDias(
     isDias ? periodoA : undefined,
@@ -203,10 +203,10 @@ export default function ComparativosPage() {
             onChange={(e) => setTipo(e.target.value)}
             className="input text-xs w-52"
           >
-            <option>Comparativo de turnos</option>
-            <option>Comparativo de dias</option>
-            <option>Comparativo de semanas</option>
-            <option>Comparativo de meses</option>
+            <option>Turnos</option>
+            <option>Dia</option>
+            <option>Semana</option>
+            <option>Mês</option>
           </select>
         </div>
 
