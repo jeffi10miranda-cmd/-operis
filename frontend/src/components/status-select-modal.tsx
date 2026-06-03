@@ -3,6 +3,7 @@
 import { X } from 'lucide-react';
 
 export const MOTIVOS_PARADA = [
+  { status: 'EM_PRODUCAO',          label: 'Em Produção',           cor: 'bg-green-500' },
   { status: 'SETUP',                label: 'Setup',                 cor: 'bg-amber-400' },
   { status: 'SETUP_DE_COR',         label: 'Troca de Cor',          cor: 'bg-amber-400' },
   { status: 'TRYOUT',               label: 'Try Out',               cor: 'bg-purple-500' },
@@ -37,7 +38,7 @@ export function StatusSelectModal({ maquina, onSelect, onClose }: Props) {
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 z-10">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-bold text-operis-dark">Motivo da Parada</h2>
+            <h2 className="text-base font-bold text-operis-dark">Alterar Status</h2>
             <p className="text-xs text-slate-500">Máquina {maquina}</p>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">

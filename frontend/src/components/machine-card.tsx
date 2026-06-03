@@ -94,6 +94,7 @@ export function MachineCard({
   const [editingQtd, setEditingQtd]     = useState(false);
   const [qtdInput, setQtdInput]         = useState('');
   const [loading, setLoading]           = useState(false);
+  const [saveError, setSaveError]       = useState(false);
   const [override, setOverride]         = useState(manualOverride ?? false);
   const [showModal, setShowModal]       = useState(false);
   const [localFicha, setLocalFicha]     = useState(observation ?? '');
@@ -119,13 +120,8 @@ export function MachineCard({
 
   async function handleToggle() {
     if (!maquina || loading) return;
-    if (ativo) {
-      // Máquina ligada → abre modal para escolher motivo
-      setShowModal(true);
-    } else {
-      // Máquina parada → liga direto
-      await aplicarStatus('EM_PRODUCAO');
-    }
+    // Sempre abre o modal — tanto para ligar quanto para trocar status
+    setShowModal(true);
   }
 
   async function aplicarStatus(novoStatus: string) {
@@ -137,7 +133,10 @@ export function MachineCard({
       setLocalStatus(novoStatus);
       setOverride(true);
       onUpdated?.();
-    } catch { /* silent */ }
+    } catch {
+      setSaveError(true);
+      setTimeout(() => setSaveError(false), 3000);
+    }
     finally { setLoading(false); }
   }
 
@@ -267,6 +266,13 @@ export function MachineCard({
       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${barWidth}%` }} />
       </div>
+
+      {/* Erro de salvamento */}
+      {saveError && (
+        <p className="text-[10px] text-red-500 font-semibold text-center">
+          Falha ao salvar — tente novamente
+        </p>
+      )}
 
       {/* Ficha Técnica — seleção interativa */}
       <div className="mt-2 pt-2 border-t border-gray-100">
