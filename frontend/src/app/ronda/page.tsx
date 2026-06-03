@@ -767,8 +767,6 @@ function TabApontar() {
   const [horaInicio, setHoraInicio]   = useState<string | null>(null);
   const [horaFim, setHoraFim]         = useState<string | null>(null);
 
-  // Limpa apontamentos ao trocar data ou turno para não misturar dados
-  useEffect(() => { setApts({}); setFinalizado(false); setHoraInicio(null); setHoraFim(null); }, [data, turno]);
 
   // Carrega snapshots do turno e data selecionados
   const { data: snapshotsRaw, isLoading: loadingSnaps } = useSnapshotsHoje(turno, data);
