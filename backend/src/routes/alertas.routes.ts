@@ -46,3 +46,11 @@ alertasRouter.patch('/marcar-todos-lidos', authorize('ADMIN', 'SUPERVISOR'), asy
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
+
+// DELETE /api/alertas/:id
+alertasRouter.delete('/:id', authorize('ADMIN', 'SUPERVISOR'), async (req, res, next) => {
+  try {
+    await alertasService.deletar(req.params.id);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});

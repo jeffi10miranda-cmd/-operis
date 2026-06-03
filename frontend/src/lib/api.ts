@@ -193,6 +193,10 @@ export async function marcarTodosAlertasLidos() {
   return api.patch('/alertas/marcar-todos-lidos').then(r => r.data);
 }
 
+export async function deletarAlerta(id: string) {
+  return api.delete(`/alertas/${id}`).then(r => r.data);
+}
+
 export async function login(email: string, password: string) {
   const { data } = await api.post('/auth/login', { email, password });
   localStorage.setItem('operis_token', data.token);

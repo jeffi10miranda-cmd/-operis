@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAlertas, useContagemAlertas } from '@/lib/api';
+import { useAlertas, useContagemAlertas, marcarAlertaLido, marcarTodosAlertasLidos, deletarAlerta } from '@/lib/api';
 import { PageLoading } from '@/components/skeleton';
-import { AlertTriangle, Info, CheckCircle, Bell, Clock } from 'lucide-react';
+import { AlertTriangle, Info, CheckCircle, Bell, Clock, Check, Trash2 } from 'lucide-react';
 
 type Contagem = { total: number; critico: number; atencao: number; info: number };
 
@@ -53,9 +53,10 @@ export default function AlertasPage() {
   const [filtroSev, setFiltroSev] = useState<string>('TODOS');
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
   const [page, setPage] = useState(1);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const { data: contagem, isLoading: loadingCount } = useContagemAlertas();
-  const { data: alertasData, isLoading: loadingList } = useAlertas({
+  const { data: contagem, isLoading: loadingCount, mutate: reloadContagem } = useContagemAlertas();
+  const { data: alertasData, isLoading: loadingList, mutate: reloadAlertas } = useAlertas({
     severidade: filtroSev !== 'TODOS' ? filtroSev : undefined,
     lido:       apenasNaoLidos ? false : undefined,
     page,
@@ -71,6 +72,23 @@ export default function AlertasPage() {
   const totalServer: number = raw?.total ?? alertas.length;
   const totalPages = Math.ceil(totalServer / PER_PAGE);
   const alertasPagina = alertas;
+
+  async function handleMarcarLido(id: string) {
+    setLoadingId(id);
+    try { await marcarAlertaLido(id); await reloadAlertas(); await reloadContagem(); }
+    finally { setLoadingId(null); }
+  }
+
+  async function handleDeletar(id: string) {
+    setLoadingId(id);
+    try { await deletarAlerta(id); await reloadAlertas(); await reloadContagem(); }
+    finally { setLoadingId(null); }
+  }
+
+  async function handleMarcarTodos() {
+    try { await marcarTodosAlertasLidos(); await reloadAlertas(); await reloadContagem(); }
+    catch { /* silent */ }
+  }
 
   if (loadingCount && loadingList) return <PageLoading />;
 
@@ -117,6 +135,12 @@ export default function AlertasPage() {
         >
           Não lidos
         </button>
+        <button
+          onClick={handleMarcarTodos}
+          className="px-3 py-1 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-600 hover:border-green-400 hover:text-green-600 transition-colors flex items-center gap-1"
+        >
+          <Check size={11} /> Marcar todos como lido
+        </button>
       </div>
 
       {/* Lista de alertas */}
@@ -150,9 +174,31 @@ export default function AlertasPage() {
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{a.descricao}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 text-xs text-slate-400 flex-shrink-0 mt-0.5">
-                  <Clock size={11} />
-                  <span>{formatHora(a.criadoEm)}</span>
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-1 text-xs text-slate-400">
+                    <Clock size={11} />
+                    <span>{formatHora(a.criadoEm)}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {!a.lido && (
+                      <button
+                        onClick={() => handleMarcarLido(a.id)}
+                        disabled={loadingId === a.id}
+                        title="Marcar como lido"
+                        className="p-1 rounded-lg text-slate-400 hover:bg-green-50 hover:text-green-600 transition-colors disabled:opacity-40"
+                      >
+                        <Check size={13} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeletar(a.id)}
+                      disabled={loadingId === a.id}
+                      title="Apagar alerta"
+                      className="p-1 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-40"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
