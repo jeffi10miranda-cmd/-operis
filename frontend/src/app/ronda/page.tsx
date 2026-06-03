@@ -928,16 +928,17 @@ function TabApontar() {
     });
   }, [snapshotsRaw, ultimosRaw, turno]);
 
-  // Usa snapshots do dia, ou último snapshot conhecido, ou fallback estático
+  // Lista de máquinas vem sempre do último snapshot conhecido (independe do turno)
+  // Os snapshots do turno atual são usados só para pré-popular os valores do form
   const maquinas = useMemo(() => {
     const sort = (arr: string[]) =>
       arr.sort((a, b) => Number(a.replace(/\D/g, '')) - Number(b.replace(/\D/g, '')));
-    if (snapshots.length > 0)
-      return sort([...new Set(snapshots.map((s: any) => s.maquina))]);
     if (ultimoSnaps.length > 0)
       return sort([...new Set(ultimoSnaps.map((s: any) => s.maquina))]);
+    if (snapshots.length > 0)
+      return sort([...new Set(snapshots.map((s: any) => s.maquina))]);
     return MACHINES;
-  }, [snapshots, ultimoSnaps]);
+  }, [ultimoSnaps, snapshots]);
 
   function setField(maq: string, field: keyof Apontamento, value: string) {
     registrarInicio();
