@@ -130,6 +130,7 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
       ...(qtdAtual   !== undefined ? { qtdAtual: Number(qtdAtual) }          : {}),
       ...(observacao !== undefined ? { observacao }                           : {}),
       manualOverride: liberarSync ? false : true,
+      capturadoEm: new Date(), // garante que este snapshot seja o mais recente no dedup
     };
 
     // Tenta encontrar snapshot existente para o dia (qualquer turno)
