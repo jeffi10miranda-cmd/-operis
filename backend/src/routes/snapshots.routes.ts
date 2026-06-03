@@ -93,6 +93,58 @@ snapshotsRouter.get('/kpis', async (_req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /api/snapshots/historico?data=YYYY-MM-DD&turno=optional
+snapshotsRouter.get('/historico', async (req, res, next) => {
+  try {
+    const dataParam  = req.query.data  as string | undefined;
+    const turnoParam = req.query.turno as Turno  | undefined;
+
+    const data = dataParam ? new Date(dataParam + 'T00:00:00') : new Date();
+    data.setHours(0, 0, 0, 0);
+
+    const snaps = await prisma.snapshotTurno.findMany({
+      where: { data, ...(turnoParam ? { turno: turnoParam } : {}) },
+      include: { produto: true },
+      orderBy: [{ maquina: 'asc' }, { capturadoEm: 'desc' }],
+    });
+
+    // Deduplica por máquina+turno mantendo o mais recente
+    const map = new Map<string, typeof snaps[0]>();
+    for (const s of snaps) {
+      const key = `${s.maquina}::${s.turno}`;
+      if (!map.has(key) || s.capturadoEm > map.get(key)!.capturadoEm) map.set(key, s);
+    }
+
+    const result = [...map.values()]
+      .sort((a, b) => {
+        const na = Number(a.maquina.replace(/\D/g, ''));
+        const nb = Number(b.maquina.replace(/\D/g, ''));
+        return na - nb || a.turno.localeCompare(b.turno);
+      })
+      .map((s, i) => {
+        const cavPadrao = s.produto?.cavidadepadrao ?? null;
+        const cavReal   = s.cavidadeReal;
+        return {
+          idx:       i + 1,
+          maquina:   s.maquina,
+          turno:     s.turno,
+          op:        s.op,
+          descricao: s.produtoNome ?? s.produto?.descricao ?? null,
+          qtdOP:     s.qtdOP,
+          qtdAtual:  s.qtdAtual,
+          ciclo:     s.produto?.ciclopadrao ?? null,
+          cicloReal: s.cicloAtual,
+          cav:       cavPadrao,
+          cavFec:    cavPadrao != null && cavReal != null ? cavPadrao - cavReal : null,
+          status:    s.status,
+          divergente: s.divergente,
+        };
+      });
+
+    res.json(result);
+  } catch (e) { next(e); }
+});
+
 // GET /api/snapshots/horas-status?data=YYYY-MM-DD
 // Retorna horas acumuladas por máquina × status (base: 8h por turno registrado)
 snapshotsRouter.get('/horas-status', async (req, res, next) => {

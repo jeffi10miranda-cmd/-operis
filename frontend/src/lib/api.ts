@@ -121,6 +121,16 @@ export function useProdutos() {
   return useSWR(hasApiAccess() ? '/produtos' : null, fetcher, SILENT);
 }
 
+export function useHistorico(data: string, turno?: string) {
+  const params = new URLSearchParams({ data });
+  if (turno && turno !== 'TODOS') params.set('turno', turno);
+  return useSWR(
+    hasApiAccess() ? `/snapshots/historico?${params}` : null,
+    fetcher,
+    { ...SILENT, refreshInterval: 60000 },
+  );
+}
+
 export function useHorasStatus(data: string) {
   return useSWR(
     hasApiAccess() ? `/snapshots/horas-status?data=${data}` : null,

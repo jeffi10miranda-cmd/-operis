@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { TurnoProvider, useTurno, type TurnoValue } from '@/contexts/turno-context';
 import {
-  Home, Calendar, BarChart3, Bell, Settings,
+  Home, Calendar, BarChart3, Bell, Settings, TableProperties,
   LogOut, Menu, X, ChevronDown, ChevronLeft, User as UserIcon, Tv, Trash2, type LucideIcon,
 } from 'lucide-react';
 import { OperisLogoFull } from '@/components/operis-logo';
@@ -36,6 +36,7 @@ function buildNavItems(alertBadge?: number): NavItem[] {
     { label: 'Central', href: '/central', icon: Home },
     { label: 'Ronda', href: '/ronda', icon: Calendar },
     { label: 'Comparativos', href: '/comparativos', icon: BarChart3 },
+    { label: 'Histórico',   href: '/historico',    icon: TableProperties },
     { label: 'Alertas', href: '/alertas', icon: Bell, badge: alertBadge },
     { label: 'Configurações', href: '/configuracoes', icon: Settings },
   ];
@@ -45,6 +46,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/central': { title: 'Central Operacional', subtitle: 'Monitoramento em tempo real da produção' },
   '/ronda': { title: 'Ronda', subtitle: 'Histórico operacional diário e consolidação por turno' },
   '/comparativos': { title: 'Comparativos', subtitle: 'Análise entre turnos, dias, semanas e meses' },
+  '/historico':    { title: 'Histórico',    subtitle: 'Registros diários por máquina — visão de planilha' },
   '/alertas': { title: 'Alertas', subtitle: 'Indicadores de severidade operacional' },
   '/configuracoes': { title: 'Configurações', subtitle: 'Integrações, produtos, usuários e regras' },
   '/perfil': { title: 'Meu Perfil', subtitle: 'Informações pessoais e recados' },
