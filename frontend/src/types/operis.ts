@@ -85,6 +85,8 @@ export interface KPIsData {
   paradas: number;
   inativas: number;
   divergentes: number;
+  totalOPs: number;
+  totalAcumulado: number;
   ultimaAtualizacao: string | null;
 }
 

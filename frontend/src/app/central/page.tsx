@@ -19,7 +19,8 @@ import {
 
 const MOCK_KPIS: KPIsData = {
   total: 30, emProducao: 18, setup: 5, regulagem: 3, aguardando: 4,
-  paradas: 4, inativas: 2, divergentes: 6, ultimaAtualizacao: null,
+  paradas: 4, inativas: 2, divergentes: 6,
+  totalOPs: 0, totalAcumulado: 0, ultimaAtualizacao: null,
 };
 
 const MOCK_SNAPSHOTS: Snapshot[] = [
@@ -255,15 +256,18 @@ export default function CentralPage() {
   ];
 
   const pct = (v: number, t: number) => (t > 0 ? `${Math.round((v / t) * 100)}% do total` : '—');
+  const fmtQtd = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1).replace('.', ',')}k` : String(v);
 
   const kpiCards = [
-    { label: 'Total de máquinas', value: kpis.total, meta: 'Monitoradas' },
-    { label: 'Em produção', value: kpis.emProducao, meta: pct(kpis.emProducao, total) },
-    { label: 'Setup / ajustes', value: kpis.setup, meta: pct(kpis.setup, total) },
-    { label: 'Regulagem', value: kpis.regulagem, meta: pct(kpis.regulagem, total) },
-    { label: 'Aguardando', value: kpis.aguardando, meta: pct(kpis.aguardando, total) },
-    { label: 'Paradas', value: kpis.paradas, meta: pct(kpis.paradas, total) },
-    { label: 'Inativas', value: kpis.inativas, meta: pct(kpis.inativas, total) },
+    { label: 'Total de máquinas', value: kpis.total,          meta: 'Monitoradas',            fmt: String(kpis.total) },
+    { label: 'Em produção',       value: kpis.emProducao,     meta: pct(kpis.emProducao, total), fmt: String(kpis.emProducao) },
+    { label: 'Setup / ajustes',   value: kpis.setup,          meta: pct(kpis.setup, total),    fmt: String(kpis.setup) },
+    { label: 'Regulagem',         value: kpis.regulagem,      meta: pct(kpis.regulagem, total), fmt: String(kpis.regulagem) },
+    { label: 'Aguardando',        value: kpis.aguardando,     meta: pct(kpis.aguardando, total),fmt: String(kpis.aguardando) },
+    { label: 'Paradas',           value: kpis.paradas,        meta: pct(kpis.paradas, total),  fmt: String(kpis.paradas) },
+    { label: 'Inativas',          value: kpis.inativas,       meta: pct(kpis.inativas, total), fmt: String(kpis.inativas) },
+    { label: 'Total das OPs',     value: kpis.totalOPs,       meta: 'Qtd a realizar hoje',     fmt: fmtQtd(kpis.totalOPs) },
+    { label: 'Total Acumulado',   value: kpis.totalAcumulado, meta: 'Já realizado hoje',        fmt: fmtQtd(kpis.totalAcumulado) },
   ];
 
   if (kpiLoading) return <CentralSkeleton />;
@@ -276,11 +280,11 @@ export default function CentralPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-9 gap-2 sm:gap-3">
         {kpiCards.map((k) => (
           <div key={k.label} className="kpi-corporate !px-3 !py-3 sm:!px-5 sm:!py-4">
             <p className="kpi-corporate__label text-[9px] sm:text-[10px]">{k.label}</p>
-            <p className="kpi-corporate__value !text-2xl sm:!text-3xl">{k.value}</p>
+            <p className="kpi-corporate__value !text-2xl sm:!text-3xl">{k.fmt}</p>
             <p className="kpi-corporate__meta hidden sm:block">{k.meta}</p>
           </div>
         ))}

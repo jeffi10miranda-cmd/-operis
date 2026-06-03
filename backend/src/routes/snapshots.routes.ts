@@ -77,13 +77,15 @@ snapshotsRouter.get('/kpis', async (_req, res, next) => {
 
     const kpis = {
       total,
-      emProducao:  all.filter(s => s.status === 'EM_PRODUCAO').length,
-      setup:       all.filter(s => ['SETUP','SETUP_DE_COR','FORA_DA_COR_PADRAO'].includes(s.status)).length,
-      regulagem:   all.filter(s => s.status === 'REGULAGEM').length,
-      aguardando:  all.filter(s => s.status.startsWith('AGUARDANDO')).length,
-      paradas:     all.filter(s => ['MANUTENCAO','FERRAMENTARIA'].includes(s.status)).length,
-      inativas:    all.filter(s => s.status === 'INATIVA').length,
-      divergentes: all.filter(s => s.divergente).length,
+      emProducao:     all.filter(s => s.status === 'EM_PRODUCAO').length,
+      setup:          all.filter(s => ['SETUP','SETUP_DE_COR','FORA_DA_COR_PADRAO'].includes(s.status)).length,
+      regulagem:      all.filter(s => s.status === 'REGULAGEM').length,
+      aguardando:     all.filter(s => s.status.startsWith('AGUARDANDO')).length,
+      paradas:        all.filter(s => ['MANUTENCAO','FERRAMENTARIA'].includes(s.status)).length,
+      inativas:       all.filter(s => s.status === 'INATIVA').length,
+      divergentes:    all.filter(s => s.divergente).length,
+      totalOPs:       all.reduce((acc, s) => acc + (s.qtdOP    ?? 0), 0),
+      totalAcumulado: all.reduce((acc, s) => acc + (s.qtdAtual ?? 0), 0),
       ultimaAtualizacao: new Date().toISOString(),
     };
 

@@ -66,7 +66,8 @@ const T = {
 // ── Mock data ─────────────────────────────────
 const MOCK_KPIS: KPIsData = {
   total: 30, emProducao: 18, setup: 5, regulagem: 3, aguardando: 4,
-  paradas: 4, inativas: 2, divergentes: 6, ultimaAtualizacao: null,
+  paradas: 4, inativas: 2, divergentes: 6,
+  totalOPs: 0, totalAcumulado: 0, ultimaAtualizacao: null,
 };
 
 const MOCK_SNAPSHOTS: Snapshot[] = [
