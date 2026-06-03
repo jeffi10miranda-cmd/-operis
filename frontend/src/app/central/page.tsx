@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
-  AlertCircle, TrendingUp, LayoutGrid, List, ChevronDown, Clock, Gauge, Search, X,
+  AlertCircle, TrendingUp, LayoutGrid, List, ChevronDown, Clock, Gauge, Search, X, ArrowRight,
 } from 'lucide-react';
 import { MachineCard } from '@/components/machine-card';
 import { CentralSkeleton } from '@/components/skeleton';
@@ -124,6 +124,51 @@ const STATUS_GROUPS: Record<string, string[]> = {
   INATIVA:     ['INATIVA'],
 };
 
+function DigitalClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hms  = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const data = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+
+  const h = now.getHours();
+  const turno = h >= 6 && h < 14 ? { label: '1º Turno', cor: 'text-blue-400',   horario: '06:00 – 14:00' }
+              : h >= 14 && h < 22 ? { label: '2º Turno', cor: 'text-purple-400', horario: '14:00 – 22:00' }
+              :                     { label: '3º Turno', cor: 'text-amber-400',  horario: '22:00 – 06:00' };
+
+  return (
+    <div className="card bg-operis-dark text-white p-5 flex flex-col items-center gap-2">
+      <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold">Horário atual</p>
+
+      {/* Relógio digital */}
+      <p className="font-mono text-4xl font-bold tracking-wider tabular-nums leading-none">
+        {hms}
+      </p>
+
+      {/* Data */}
+      <p className="text-xs text-white/60 capitalize">{data}</p>
+
+      {/* Turno */}
+      <div className="mt-1 flex items-center gap-2 bg-white/10 rounded-full px-3 py-1">
+        <span className={`w-1.5 h-1.5 rounded-full ${turno.cor.replace('text-', 'bg-')}`} />
+        <span className={`text-xs font-semibold ${turno.cor}`}>{turno.label}</span>
+        <span className="text-[10px] text-white/40">{turno.horario}</span>
+      </div>
+
+      {/* Link para comparativo */}
+      <Link
+        href="/comparativos"
+        className="mt-1 flex items-center gap-1 text-[10px] text-white/40 hover:text-white/70 transition-colors"
+      >
+        Ver métricas por turno <ArrowRight size={10} />
+      </Link>
+    </div>
+  );
+}
+
 export default function CentralPage() {
   useSocket();
   const { turnoAtual: turnoView } = useTurno();
@@ -214,7 +259,7 @@ export default function CentralPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-3 sm:gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-3 sm:gap-5 items-start">
         <div className="card p-3 sm:p-5 space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-base font-bold text-operis-dark">Status das Máquinas</h2>
@@ -316,7 +361,10 @@ export default function CentralPage() {
           )}
         </div>
 
-        {alertasData?.items?.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <DigitalClock />
+
+          {alertasData?.items?.length > 0 && (
           <div className="card p-3 sm:p-5">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-base font-bold text-operis-dark">Alertas importantes</h2>
@@ -345,7 +393,8 @@ export default function CentralPage() {
               Ver todos os alertas
             </Link>
           </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
