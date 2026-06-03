@@ -201,15 +201,18 @@ export default function CentralPage() {
   useSocket();
   const { turnoAtual: turnoView } = useTurno();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const hoje = new Date().toISOString().slice(0, 10);
+  const [dataFiltro, setDataFiltro] = useState(hoje);
 
   const [searchQuery, setSearchQuery]   = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS');
 
   const { data: kpisData, isLoading: kpiLoading, error: kpiError, mutate: reloadKpis } = useKPIs();
-  const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO');
-  const { data: t2Raw, mutate: reloadT2 } = useSnapshotsHoje('SEGUNDO');
-  const { data: t3Raw, mutate: reloadT3 } = useSnapshotsHoje('TERCEIRO');
+  const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO', dataFiltro);
+  const { data: t2Raw, mutate: reloadT2 } = useSnapshotsHoje('SEGUNDO',  dataFiltro);
+  const { data: t3Raw, mutate: reloadT3 } = useSnapshotsHoje('TERCEIRO', dataFiltro);
   const { data: alertasData } = useAlertas({ lido: false, limit: 5 });
+  const isHoje = dataFiltro === hoje;
 
   function reloadAll() {
     reloadT1(undefined, { revalidate: true });
@@ -315,7 +318,26 @@ export default function CentralPage() {
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-3 sm:gap-5 items-start">
         <div className="card p-3 sm:p-5 space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h2 className="text-base font-bold text-operis-dark">Status das Máquinas</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-base font-bold text-operis-dark">Status das Máquinas</h2>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dataFiltro}
+                  max={hoje}
+                  onChange={e => setDataFiltro(e.target.value)}
+                  className="input text-xs py-1 px-2 w-36"
+                />
+                {!isHoje && (
+                  <button
+                    onClick={() => setDataFiltro(hoje)}
+                    className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold"
+                  >
+                    Hoje
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="flex border border-gray-200 rounded-xl overflow-hidden">
               <button onClick={() => setViewMode('grid')} className={`p-2 ${viewMode === 'grid' ? 'bg-operis-dark text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
                 <LayoutGrid size={16} />

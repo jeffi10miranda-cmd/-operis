@@ -112,10 +112,14 @@ export function RondaCard({ snapshot, produtos, onApontado, data, turno }: Ronda
     try {
       await api.patch(`/snapshots/maquina/${s.maquina}`, {
         status,
-        op:          opNum      || undefined,
-        qtdOP:       qtdOpVal   ? Number(qtdOpVal.replace(/\./g, '').replace(',', '.'))   : undefined,
-        qtdAtual:    qtdNum     ?? undefined,
-        observacao:  ficha      || undefined,
+        op:           opNum      || undefined,
+        qtdOP:        qtdOpVal   ? Number(qtdOpVal.replace(/\./g, '').replace(',', '.'))  : undefined,
+        qtdAtual:     qtdNum     ?? undefined,
+        cicloAtual:   cicloReal  || undefined,
+        cavidadeReal: cavReal    || undefined,
+        produtoNome:  produto    || undefined,
+        produtoId:    produtoSelecionado?.id || undefined,
+        observacao:   ficha      || undefined,
         ...(data  ? { data }  : {}),
         ...(turno ? { turno } : {}),
       });

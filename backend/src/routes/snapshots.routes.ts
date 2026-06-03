@@ -146,21 +146,11 @@ snapshotsRouter.get('/maquina/:id', async (req, res, next) => {
 snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
   try {
     const { status, op, qtdOP, qtdAtual, observacao, liberarSync,
-            cicloAtual, cavidadeReal, produtoNome,
+            cicloAtual, cavidadeReal, produtoNome, produtoId: produtoIdParam,
             data: dataParam, turno: turnoParam } = req.body;
 
     const data = dataParam ? new Date(dataParam + 'T00:00:00') : new Date();
     data.setHours(0, 0, 0, 0);
-
-    const updateData = {
-      ...(status     !== undefined ? { status: status as StatusOperacional } : {}),
-      ...(op         !== undefined ? { op }                                  : {}),
-      ...(qtdOP      !== undefined ? { qtdOP: Number(qtdOP) }                : {}),
-      ...(qtdAtual   !== undefined ? { qtdAtual: Number(qtdAtual) }          : {}),
-      ...(observacao !== undefined ? { observacao }                           : {}),
-      manualOverride: liberarSync ? false : true,
-      capturadoEm: new Date(), // garante que este snapshot seja o mais recente no dedup
-    };
 
     // Calcula turno pelo horário atual (fallback quando não enviado pelo cliente)
     const h = new Date().getHours();
@@ -173,22 +163,17 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
       orderBy: { capturadoEm: 'desc' },
     });
 
-    // Busca produtoId pelo nome (se informado)
-    let produtoId: string | null = null;
-    if (produtoNome) {
+    // Resolve produtoId: usa o ID enviado diretamente ou busca pelo nome
+    let produtoId: string | null = produtoIdParam ?? null;
+    if (!produtoId && produtoNome) {
       const prod = await prisma.produto.findFirst({
         where: { descricao: { equals: produtoNome, mode: 'insensitive' } },
         select: { id: true },
+      }) ?? await prisma.produto.findFirst({
+        where: { descricao: { contains: produtoNome, mode: 'insensitive' } },
+        select: { id: true },
       });
-      if (!prod) {
-        const prodParcial = await prisma.produto.findFirst({
-          where: { descricao: { contains: produtoNome, mode: 'insensitive' } },
-          select: { id: true },
-        });
-        produtoId = prodParcial?.id ?? null;
-      } else {
-        produtoId = prod.id;
-      }
+      produtoId = prod?.id ?? null;
     }
 
     if (existing) {
