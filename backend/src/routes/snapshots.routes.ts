@@ -140,14 +140,26 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
     });
 
     if (existing) {
-      // Marca manualOverride em TODOS os snapshots do dia para que o sync
-      // não sobrescreva nenhum turno após a alteração manual
+      // Aplica status, op e manualOverride em TODOS os snapshots do dia
+      // (view "Todos" mostra cada turno separadamente — todos precisam refletir a mudança)
       await prisma.snapshotTurno.updateMany({
         where: { maquina: req.params.maquina, data },
-        data: { manualOverride: liberarSync ? false : true },
+        data: {
+          ...(status !== undefined ? { status: status as StatusOperacional } : {}),
+          ...(op     !== undefined ? { op }                                  : {}),
+          manualOverride: liberarSync ? false : true,
+        },
       });
-      // Aplica as alterações de dados no snapshot mais recente
-      const updated = await prisma.snapshotTurno.update({ where: { id: existing.id }, data: updateData });
+      // Atualiza qtd/observação e capturadoEm só no snapshot mais recente
+      const updated = await prisma.snapshotTurno.update({
+        where: { id: existing.id },
+        data: {
+          ...(qtdOP      !== undefined ? { qtdOP:     Number(qtdOP)    } : {}),
+          ...(qtdAtual   !== undefined ? { qtdAtual:  Number(qtdAtual) } : {}),
+          ...(observacao !== undefined ? { observacao }                   : {}),
+          capturadoEm: new Date(),
+        },
+      });
       return res.json(updated);
     }
 
