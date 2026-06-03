@@ -132,12 +132,17 @@ export default function CentralPage() {
   const [searchQuery, setSearchQuery]   = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS');
 
-  const { data: kpisData, isLoading: kpiLoading, error: kpiError } = useKPIs();
+  const { data: kpisData, isLoading: kpiLoading, error: kpiError, mutate: reloadKpis } = useKPIs();
   const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO');
   const { data: t2Raw, mutate: reloadT2 } = useSnapshotsHoje('SEGUNDO');
   const { data: t3Raw, mutate: reloadT3 } = useSnapshotsHoje('TERCEIRO');
 
-  function reloadAll() { reloadT1(); reloadT2(); reloadT3(); }
+  function reloadAll() {
+    reloadT1(undefined, { revalidate: true });
+    reloadT2(undefined, { revalidate: true });
+    reloadT3(undefined, { revalidate: true });
+    reloadKpis(undefined, { revalidate: true });
+  }
 
   function applyFilters(machines: ReturnType<typeof snapshotToCard>[]) {
     const q = searchQuery.trim().toLowerCase();
@@ -274,7 +279,7 @@ export default function CentralPage() {
             <TurnoSection
               machines={applyFilters(turnoDataMap[turnoView] ?? [])}
               viewMode={viewMode}
-              onUpdated={() => turnoReloadMap[turnoView]?.()}
+              onUpdated={reloadAll}
             />
           )}
 
@@ -300,7 +305,7 @@ export default function CentralPage() {
                       <TurnoSection
                         machines={maquinas}
                         viewMode={viewMode}
-                        onUpdated={() => turnoReloadMap[tc.id]?.()}
+                        onUpdated={reloadAll}
                       />
                     )}
                   </div>

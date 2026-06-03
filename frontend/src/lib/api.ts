@@ -74,7 +74,12 @@ export function useSnapshotsHoje(turno?: string, data?: string) {
   if (data) params.set('data', data);
   const qs = params.toString();
   const url = `/snapshots/hoje${qs ? `?${qs}` : ''}`;
-  return useSWR(hasApiAccess() ? url : null, fetcher, { ...SILENT, refreshInterval: 30000 });
+  return useSWR(hasApiAccess() ? url : null, fetcher, {
+    ...SILENT,
+    refreshInterval: 30000,
+    revalidateOnFocus: true,
+    revalidateOnMount: true,
+  });
 }
 
 export function useSnapshotsUltimo() {
