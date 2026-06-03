@@ -92,8 +92,11 @@ export default function HistoricoPage() {
       });
       setSheetUrl(res.url);
       window.open(res.url, '_blank');
-    } catch {
-      setExportError('Erro ao exportar. Verifique as credenciais do Google.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.message
+               || (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.error
+               || 'Erro ao exportar. Verifique as credenciais do Google.';
+      setExportError(msg);
     } finally {
       setExportando(false);
     }

@@ -118,24 +118,29 @@ export async function exportarHistoricoParaSheets(params: {
     },
   });
 
-  const spreadsheetId = result.data.spreadsheetId!;
+  const spreadsheetId  = result.data.spreadsheetId!;
+  const spreadsheetUrl = result.data.spreadsheetUrl!;
 
-  // Compartilha com qualquer pessoa que tiver o link
-  await drive.permissions.create({
-    fileId: spreadsheetId,
-    requestBody: { role: 'reader', type: 'anyone' },
-  });
-
-  // Compartilha com email específico se fornecido
-  if (params.emailCompartilhar) {
+  // Tenta compartilhar (requer Drive API habilitada no Google Cloud Console)
+  try {
     await drive.permissions.create({
       fileId: spreadsheetId,
-      requestBody: { role: 'writer', type: 'user', emailAddress: params.emailCompartilhar },
+      requestBody: { role: 'reader', type: 'anyone' },
     });
+    if (params.emailCompartilhar) {
+      await drive.permissions.create({
+        fileId: spreadsheetId,
+        requestBody: { role: 'writer', type: 'user', emailAddress: params.emailCompartilhar },
+      });
+    }
+    logger.info(`📊 Planilha exportada e compartilhada: ${spreadsheetUrl}`);
+  } catch (err) {
+    // Drive API não habilitada — planilha criada mas sem compartilhamento automático
+    // Usuário pode abrir e compartilhar manualmente
+    logger.warn(`📊 Planilha criada mas não compartilhada (habilite Drive API): ${spreadsheetUrl}`);
   }
 
-  logger.info(`📊 Planilha exportada: ${result.data.spreadsheetUrl}`);
-  return result.data.spreadsheetUrl!;
+  return spreadsheetUrl;
 }
 
 const STATUS_MAP: Record<string, string> = {

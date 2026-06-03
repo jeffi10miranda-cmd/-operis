@@ -99,5 +99,9 @@ sheetsRouter.post('/exportar-historico', authorize('ADMIN', 'SUPERVISOR'), async
 
     const url = await exportarHistoricoParaSheets({ titulo, linhas, emailCompartilhar: email });
     res.json({ url });
-  } catch (e) { next(e); }
+  } catch (e: unknown) {
+    const gErr = (e as { errors?: { message: string }[] })?.errors?.[0]?.message;
+    const msg  = gErr || (e as Error)?.message || 'Erro ao exportar para Google Sheets';
+    res.status(500).json({ message: msg });
+  }
 });
