@@ -481,23 +481,36 @@ function UsuariosSection() {
     finally  { setSaving(false); }
   };
 
-  async function mudarRole(id: string, role: string) {
-    setActionId(id);
+  async function mudarRole(id: string, role: string | undefined) {
+    if (!role) return;
+    setActionId(id); setError('');
     try {
       const updated = await atualizarRoleUsuario(id, role) as User;
       setUsers(p => p.map(u => u.id === id ? { ...u, role: updated.role } : u));
-    } catch { setError('Erro ao alterar perfil.'); }
-    finally  { setActionId(null); }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string; message?: string } } })
+        ?.response?.data?.error
+        ?? (e as { response?: { data?: { error?: string; message?: string } } })
+        ?.response?.data?.message
+        ?? 'Erro ao alterar perfil.';
+      setError(msg);
+    } finally { setActionId(null); }
   }
 
   async function deletar(id: string, nome: string) {
     if (!confirm(`Excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`)) return;
-    setActionId(id);
+    setActionId(id); setError('');
     try {
       await excluirUsuario(id);
       setUsers(p => p.filter(u => u.id !== id));
-    } catch { setError('Erro ao excluir usuário.'); }
-    finally  { setActionId(null); }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string; message?: string } } })
+        ?.response?.data?.error
+        ?? (e as { response?: { data?: { error?: string; message?: string } } })
+        ?.response?.data?.message
+        ?? 'Erro ao excluir usuário.';
+      setError(msg);
+    } finally { setActionId(null); }
   }
 
   return (
@@ -507,8 +520,9 @@ function UsuariosSection() {
         {users.map((u) => {
           const rc  = roleLabel[u.role] ?? roleLabel.VISUALIZADOR;
           const idx = ROLES_ORDEM.indexOf(u.role as typeof ROLES_ORDEM[number]);
-          const podeSobir  = idx < ROLES_ORDEM.length - 1;
-          const podeDescer = idx > 0;
+          const idxValido  = idx >= 0;
+          const podeSobir  = idxValido && idx < ROLES_ORDEM.length - 1;
+          const podeDescer = idxValido && idx > 0;
           const busy = actionId === u.id;
           return (
             <div key={u.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl">

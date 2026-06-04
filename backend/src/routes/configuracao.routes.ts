@@ -67,12 +67,23 @@ configuracaoRouter.patch('/usuarios/:id/role', authorize('ADMIN'), async (req, r
 // DELETE /api/configuracao/usuarios/:id
 configuracaoRouter.delete('/usuarios/:id', authorize('ADMIN'), async (req, res, next) => {
   try {
-    // Impede auto-exclusão
-    if (req.params.id === req.user?.userId) {
+    const { id } = req.params;
+
+    if (id === req.user?.userId) {
       res.status(400).json({ error: 'Você não pode excluir sua própria conta.' });
       return;
     }
-    await prisma.user.delete({ where: { id: req.params.id } });
+
+    // Verifica que o usuário existe
+    const existe = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+    if (!existe) { res.status(404).json({ error: 'Usuário não encontrado.' }); return; }
+
+    // Limpa FK antes de deletar (evita constraint violation)
+    await prisma.$transaction([
+      prisma.alerta.updateMany({ where: { criadoPor: id }, data: { criadoPor: null } }),
+      prisma.user.delete({ where: { id } }),
+    ]);
+
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
