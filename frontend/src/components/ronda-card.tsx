@@ -104,7 +104,7 @@ export function RondaCard({ snapshot, produtos, onApontado, data, turno }: Ronda
   const cavNum       = cavReal   ? Number(cavReal)   : null;
   const qtdNum       = qtdAcum   ? Number(qtdAcum.replace(/\./g, '').replace(',', '.')) : null;
 
-  const cicloBad = cicloNum && cicloTarget ? cicloNum > cicloTarget * 1.05 : false;
+  const cicloBad = cicloNum !== null && cicloTarget ? cicloNum > cicloTarget * 1.05 : false;
   const cavBad   = cavNum   && cavTarget   ? cavNum   < cavTarget           : false;
 
   async function handleApontar() {

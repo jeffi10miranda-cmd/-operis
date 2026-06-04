@@ -58,9 +58,9 @@ async function processarMaquina(
     ? detectarDivergencia(row, produto)
     : false;
 
-  // Não sobrescreve máquinas com override manual ativo em qualquer turno do dia
+  // Não sobrescreve snapshot se este turno específico tem override manual ativo
   const hasOverride = await prisma.snapshotTurno.findFirst({
-    where: { maquina: row.maquina, data, manualOverride: true },
+    where: { maquina: row.maquina, data, turno, manualOverride: true },
     select: { id: true },
   });
   if (hasOverride) return;

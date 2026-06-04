@@ -872,6 +872,7 @@ function TabApontar() {
   const [apts, setApts]         = useState<Record<string, Apontamento>>({});
   const [finalizado, setFinalizado]   = useState(false);
   const [salvando, setSalvando]       = useState(false);
+  const [erroSalvar, setErroSalvar]   = useState('');
   const [obsAberta, setObsAberta]     = useState<string | null>(null);
   const [buscaMaq, setBuscaMaq]       = useState('');
   const [filtroMaq, setFiltroMaq]     = useState<FiltroMaq>('todas');
@@ -964,9 +965,10 @@ function TabApontar() {
 
   async function salvarRonda() {
     setSalvando(true);
+    setErroSalvar('');
     const fim = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
     try {
-      await Promise.allSettled(
+      const resultados = await Promise.allSettled(
         maquinas.map((maq: string) => {
           const ap = apts[maq];
           if (!ap) return Promise.resolve();
@@ -984,9 +986,14 @@ function TabApontar() {
           });
         })
       );
-      setHoraFim(fim);
-      setFinalizado(true);
-    } catch { /* silent */ }
+      const falhas = resultados.filter(r => r.status === 'rejected').length;
+      if (falhas > 0) {
+        setErroSalvar(`${falhas} máquina${falhas > 1 ? 's' : ''} não foram salvas. Verifique a conexão e tente novamente.`);
+      } else {
+        setHoraFim(fim);
+        setFinalizado(true);
+      }
+    } catch { /* allSettled nunca rejeita — catch de segurança */ }
     finally { setSalvando(false); }
   }
 
@@ -1083,17 +1090,22 @@ function TabApontar() {
           </div>
 
           {/* Ações */}
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button onClick={limparTudo} className="btn-ghost text-xs sm:text-sm gap-1.5 flex-1 sm:flex-none justify-center">
-              <RotateCcw size={14} /> Limpar
-            </button>
-            <button
-              onClick={salvarRonda}
-              disabled={preenchidos === 0 || salvando}
-              className="btn-primary text-xs sm:text-sm gap-1.5 disabled:opacity-50 flex-1 sm:flex-none justify-center"
-            >
-              <Save size={14} /> {salvando ? 'Salvando...' : 'Salvar Ronda'}
-            </button>
+          <div className="flex flex-col items-end gap-1 w-full sm:w-auto">
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button onClick={limparTudo} className="btn-ghost text-xs sm:text-sm gap-1.5 flex-1 sm:flex-none justify-center">
+                <RotateCcw size={14} /> Limpar
+              </button>
+              <button
+                onClick={salvarRonda}
+                disabled={preenchidos === 0 || salvando}
+                className="btn-primary text-xs sm:text-sm gap-1.5 disabled:opacity-50 flex-1 sm:flex-none justify-center"
+              >
+                <Save size={14} /> {salvando ? 'Salvando...' : 'Salvar Ronda'}
+              </button>
+            </div>
+            {erroSalvar && (
+              <p className="text-xs text-red-500 font-semibold">{erroSalvar}</p>
+            )}
           </div>
         </div>
 

@@ -58,6 +58,8 @@ const trendData = [
 function snapshotToCard(s: Snapshot) {
   return {
     maquina: s.maquina,
+    turno:   s.turno,
+    data:    s.data?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
     name: s.maquina,
     product: s.produtoNome || s.produto?.descricao || '—',
     status: s.status,
@@ -162,9 +164,11 @@ function DigitalClock() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     fetchConfiguracao()
-      .then((cfg) => { if (cfg.clock_tema) setTema(cfg.clock_tema as ClockTema); })
+      .then((cfg) => { if (!cancelled && cfg.clock_tema) setTema(cfg.clock_tema as ClockTema); })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   const est  = CLOCK_ESTILOS[tema] ?? CLOCK_ESTILOS.escuro;

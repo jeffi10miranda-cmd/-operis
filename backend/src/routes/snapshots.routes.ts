@@ -97,7 +97,11 @@ snapshotsRouter.get('/kpis', async (_req, res, next) => {
 snapshotsRouter.get('/historico', async (req, res, next) => {
   try {
     const dataParam  = req.query.data  as string | undefined;
-    const turnoParam = req.query.turno as Turno  | undefined;
+    const turnoRaw   = req.query.turno as string  | undefined;
+
+    const TURNOS_VALIDOS: Turno[] = ['PRIMEIRO', 'SEGUNDO', 'TERCEIRO'];
+    const turnoParam = turnoRaw && TURNOS_VALIDOS.includes(turnoRaw as Turno)
+      ? (turnoRaw as Turno) : undefined;
 
     const data = dataParam ? new Date(dataParam + 'T00:00:00') : new Date();
     data.setHours(0, 0, 0, 0);

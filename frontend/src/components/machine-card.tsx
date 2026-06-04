@@ -11,6 +11,8 @@ import { StatusSelectModal } from './status-select-modal';
 interface MachineCardProps {
   snapshotId?: string;
   maquina?: string;
+  turno?: string;
+  data?: string;
   name: string;
   product: string;
   status: string;
@@ -80,7 +82,8 @@ function FichaTecnicaToggle({ value, onChange }: { value: string; onChange: (v: 
 }
 
 export function MachineCard({
-  maquina, name, product, status,
+  maquina, turno, data,
+  name, product, status,
   op, qtdOP,
   cycleCurrent, cycleTarget,
   cavityCurrent, cavityTarget,
@@ -129,7 +132,11 @@ export function MachineCard({
     setLoading(true);
     setShowModal(false);
     try {
-      await api.patch(`/snapshots/maquina/${maquina}`, { status: novoStatus });
+      await api.patch(`/snapshots/maquina/${maquina}`, {
+        status: novoStatus,
+        ...(turno ? { turno } : {}),
+        ...(data  ? { data  } : {}),
+      });
       setLocalStatus(novoStatus);
       setOverride(true);
       onUpdated?.();
@@ -146,7 +153,11 @@ export function MachineCard({
     if (isNaN(val)) { setEditingQtd(false); return; }
     setLoading(true);
     try {
-      await api.patch(`/snapshots/maquina/${maquina}`, { qtdAtual: val });
+      await api.patch(`/snapshots/maquina/${maquina}`, {
+        qtdAtual: val,
+        ...(turno ? { turno } : {}),
+        ...(data  ? { data  } : {}),
+      });
       setLocalQtd(val);
       setEditingQtd(false);
       onUpdated?.();
@@ -282,8 +293,13 @@ export function MachineCard({
           onChange={async (v) => {
             if (!maquina) return;
             setLocalFicha(v);
-            try { await api.patch(`/snapshots/maquina/${maquina}`, { observacao: v }); }
-            catch { setLocalFicha(localFicha); }
+            try {
+              await api.patch(`/snapshots/maquina/${maquina}`, {
+                observacao: v,
+                ...(turno ? { turno } : {}),
+                ...(data  ? { data  } : {}),
+              });
+            } catch { setLocalFicha(localFicha); }
           }}
         />
       </div>
