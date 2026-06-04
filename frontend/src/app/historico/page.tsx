@@ -177,7 +177,7 @@ export default function HistoricoPage() {
             disabled={filtradas.length === 0}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1d6f42] text-white text-sm font-semibold hover:bg-[#155c36] disabled:opacity-50 transition-colors"
           >
-            <FileSpreadsheet size={15} /> Exportar Excel
+            <FileSpreadsheet size={15} /> Importar pro Excel
           </button>
         </div>
       </div>
