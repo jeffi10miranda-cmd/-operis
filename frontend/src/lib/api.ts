@@ -231,6 +231,13 @@ export async function login(email: string, password: string) {
   return data;
 }
 
+export async function register(name: string, email: string, password: string, confirmPassword: string) {
+  const { data } = await api.post('/auth/register', { name, email, password, confirmPassword });
+  localStorage.setItem('operis_token', data.token);
+  disablePreviewMode();
+  return data;
+}
+
 export function logout() {
   localStorage.removeItem('operis_token');
   disablePreviewMode();

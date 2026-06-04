@@ -15,6 +15,16 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
 });
 
+const registerSchema = z.object({
+  name:            z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').max(80),
+  email:           z.string().email('Email inválido'),
+  password:        z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  confirmPassword: z.string(),
+}).refine(d => d.password === d.confirmPassword, {
+  message: 'As senhas não conferem',
+  path: ['confirmPassword'],
+});
+
 // ── POST /api/auth/login ───────────────────────
 authRouter.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -45,6 +55,34 @@ authRouter.post('/login', async (req: Request, res: Response, next: NextFunction
         email: user.email,
         role: user.role,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/auth/register ───────────────────
+authRouter.post('/register', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, email, password } = registerSchema.parse(req.body);
+
+    const existente = await prisma.user.findUnique({ where: { email } });
+    if (existente) throw new AppError('Este e-mail já está em uso', 409);
+
+    const hashed = await bcrypt.hash(password, 10);
+    const user   = await prisma.user.create({
+      data: { name, email, password: hashed, role: 'OPERADOR', active: true },
+    });
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET as Secret,
+      { expiresIn: (process.env.JWT_EXPIRES_IN || '8h') as SignOptions['expiresIn'] }
+    );
+
+    res.status(201).json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
     });
   } catch (err) {
     next(err);
