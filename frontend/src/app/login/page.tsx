@@ -19,8 +19,8 @@ export default function LoginPage() {
   const [modo, setModo] = useState<'login' | 'registro'>('login');
 
   // Login
-  const [email,    setEmail]    = useState('admin@operis.com.br');
-  const [password, setPassword] = useState('operis@2025');
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
 
   // Registro
   const [nome,            setNome]            = useState('');
@@ -239,12 +239,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {modo === 'login' && (
-          <p className="text-center text-slate-600 text-xs mt-4">
-            Demo: <span className="text-slate-400">admin@operis.com.br</span> /{' '}
-            <span className="text-slate-400">operis@2025</span>
-          </p>
-        )}
       </div>
     </div>
   );
