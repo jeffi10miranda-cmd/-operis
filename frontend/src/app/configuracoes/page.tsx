@@ -9,11 +9,14 @@ import {
   testarConexaoPlanilha,
   fetchUsuarios,
   criarUsuario,
+  atualizarRoleUsuario,
+  excluirUsuario,
 } from '@/lib/api';
 import type { User } from '@/types/operis';
 import {
   Sheet, Shield, Bell, Users, Sliders, CheckCircle,
   AlertCircle, Loader2, Eye, EyeOff, Plus, Settings2, Palette,
+  Trash2, ChevronUp, ChevronDown,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -449,6 +452,8 @@ const roleLabel: Record<string, { label: string; badge: string }> = {
   VISUALIZADOR:{ label: 'Visualizador',badge: 'bg-gray-100 text-gray-600' },
 };
 
+const ROLES_ORDEM = ['VISUALIZADOR', 'OPERADOR', 'SUPERVISOR', 'ADMIN'] as const;
+
 function UsuariosSection() {
   const [users, setUsers]     = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -456,49 +461,100 @@ function UsuariosSection() {
   const [form, setForm]         = useState({ name: '', email: '', password: '', role: 'OPERADOR' });
   const [error, setError]       = useState('');
   const [saving, setSaving]     = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsuarios()
       .then((list) => setUsers(list as User[]))
-      .catch(() => {}); // requer ADMIN e backend conectado
+      .catch(() => {});
   }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setError('');
+    setSaving(true); setError('');
     try {
       const created = await criarUsuario(form) as User;
       setUsers((p) => [...p, { ...created, active: true, createdAt: new Date().toISOString() }]);
       setForm({ name: '', email: '', password: '', role: 'OPERADOR' });
       setShowForm(false);
-    } catch {
-      setError('Erro ao criar usuário. Verifique permissões e dados.');
-    } finally {
-      setSaving(false);
-    }
+    } catch { setError('Erro ao criar usuário. Verifique permissões e dados.'); }
+    finally  { setSaving(false); }
   };
+
+  async function mudarRole(id: string, role: string) {
+    setActionId(id);
+    try {
+      const updated = await atualizarRoleUsuario(id, role) as User;
+      setUsers(p => p.map(u => u.id === id ? { ...u, role: updated.role } : u));
+    } catch { setError('Erro ao alterar perfil.'); }
+    finally  { setActionId(null); }
+  }
+
+  async function deletar(id: string, nome: string) {
+    if (!confirm(`Excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    setActionId(id);
+    try {
+      await excluirUsuario(id);
+      setUsers(p => p.filter(u => u.id !== id));
+    } catch { setError('Erro ao excluir usuário.'); }
+    finally  { setActionId(null); }
+  }
 
   return (
     <SectionCard title="Usuários do Sistema" subtitle="Gerenciamento de acesso e permissões" icon={<Users size={18} />}>
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
       <div className="space-y-2">
         {users.map((u) => {
-          const rc = roleLabel[u.role] ?? roleLabel.VISUALIZADOR;
+          const rc  = roleLabel[u.role] ?? roleLabel.VISUALIZADOR;
+          const idx = ROLES_ORDEM.indexOf(u.role as typeof ROLES_ORDEM[number]);
+          const podeSobir  = idx < ROLES_ORDEM.length - 1;
+          const podeDescer = idx > 0;
+          const busy = actionId === u.id;
           return (
             <div key={u.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-operis-dark/10 flex items-center justify-center text-operis-dark font-bold text-sm flex-shrink-0">
                   {u.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-operis-dark">{u.name}</p>
-                  <p className="text-xs text-gray-400">{u.email}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-operis-dark truncate">{u.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{u.email}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {/* Badge de perfil */}
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${rc.badge}`}>{rc.label}</span>
-                <span className={`w-2 h-2 rounded-full ${u.active ? 'bg-green-500' : 'bg-gray-300'}`} title={u.active ? 'Ativo' : 'Inativo'} />
+
+                {/* Promover */}
+                <button
+                  onClick={() => mudarRole(u.id, ROLES_ORDEM[idx + 1])}
+                  disabled={!podeSobir || busy}
+                  title={`Promover para ${ROLES_ORDEM[idx + 1] ?? ''}`}
+                  className="p-1 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-30 transition-colors"
+                >
+                  {busy ? <Loader2 size={13} className="animate-spin" /> : <ChevronUp size={13} />}
+                </button>
+
+                {/* Despromover */}
+                <button
+                  onClick={() => mudarRole(u.id, ROLES_ORDEM[idx - 1])}
+                  disabled={!podeDescer || busy}
+                  title={`Despromover para ${ROLES_ORDEM[idx - 1] ?? ''}`}
+                  className="p-1 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 disabled:opacity-30 transition-colors"
+                >
+                  <ChevronDown size={13} />
+                </button>
+
+                {/* Excluir */}
+                <button
+                  onClick={() => deletar(u.id, u.name)}
+                  disabled={busy}
+                  title="Excluir usuário"
+                  className="p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 transition-colors ml-1"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
           );
@@ -529,7 +585,7 @@ function UsuariosSection() {
               <option value="VISUALIZADOR">Visualizador</option>
               <option value="OPERADOR">Operador</option>
               <option value="SUPERVISOR">Supervisor</option>
-              <option value="ADMIN">Admin</option>
+              <option value="ADMIN">Administrador</option>
             </select>
           </div>
           <div className="flex gap-2 justify-end">
@@ -542,8 +598,7 @@ function UsuariosSection() {
       ) : (
         <button onClick={() => setShowForm(true)}
           className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:text-operis-dark hover:border-operis-dark transition-colors font-medium">
-          <Plus size={16} />
-          Adicionar usuário
+          <Plus size={16} /> Adicionar usuário
         </button>
       )}
     </SectionCard>

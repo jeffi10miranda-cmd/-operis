@@ -49,6 +49,34 @@ configuracaoRouter.get('/usuarios', authorize('ADMIN'), async (_req, res, next) 
   } catch (e) { next(e); }
 });
 
+// PATCH /api/configuracao/usuarios/:id/role
+configuracaoRouter.patch('/usuarios/:id/role', authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { role } = z.object({
+      role: z.enum(['ADMIN','SUPERVISOR','OPERADOR','VISUALIZADOR']),
+    }).parse(req.body);
+    const user = await prisma.user.update({
+      where:  { id: req.params.id },
+      data:   { role },
+      select: { id: true, name: true, email: true, role: true, active: true },
+    });
+    res.json(user);
+  } catch (e) { next(e); }
+});
+
+// DELETE /api/configuracao/usuarios/:id
+configuracaoRouter.delete('/usuarios/:id', authorize('ADMIN'), async (req, res, next) => {
+  try {
+    // Impede auto-exclusão
+    if (req.params.id === req.user?.userId) {
+      res.status(400).json({ error: 'Você não pode excluir sua própria conta.' });
+      return;
+    }
+    await prisma.user.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 // POST /api/configuracao/usuarios
 configuracaoRouter.post('/usuarios', authorize('ADMIN'), async (req, res, next) => {
   try {

@@ -171,6 +171,14 @@ export async function criarUsuario(data: { name: string; email: string; password
   return api.post('/configuracao/usuarios', data).then((r) => r.data);
 }
 
+export async function atualizarRoleUsuario(id: string, role: string) {
+  return api.patch(`/configuracao/usuarios/${id}/role`, { role }).then((r) => r.data);
+}
+
+export async function excluirUsuario(id: string) {
+  return api.delete(`/configuracao/usuarios/${id}`).then((r) => r.data);
+}
+
 export async function testarConexaoPlanilha(sheetId: string) {
   return api.post<{ conectado: boolean; sheetId: string }>('/sheets/testar-conexao', { sheetId }).then((r) => r.data);
 }

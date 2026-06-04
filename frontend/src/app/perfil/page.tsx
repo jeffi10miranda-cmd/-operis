@@ -349,9 +349,6 @@ export default function PerfilPage() {
         />
       )}
 
-      {/* Layout */}
-      <LayoutSection />
-
       {/* Mural de recados */}
       <div>
         <div className="flex items-center justify-between mb-4">
