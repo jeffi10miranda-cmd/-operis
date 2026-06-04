@@ -105,6 +105,39 @@ authRouter.get('/me', authenticate, async (req: Request, res: Response, next: Ne
   }
 });
 
+// ── PATCH /api/auth/profile ───────────────────
+authRouter.patch('/profile', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name } = z.object({ name: z.string().min(2).max(80) }).parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: req.user!.userId },
+      data:  { name },
+      select: { id: true, name: true, email: true, role: true },
+    });
+    res.json(user);
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/auth/change-password ───────────
+authRouter.patch('/change-password', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { senhaAtual, novaSenha } = z.object({
+      senhaAtual: z.string().min(1),
+      novaSenha:  z.string().min(6, 'Nova senha deve ter no mínimo 6 caracteres'),
+    }).parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+    if (!user) throw new AppError('Usuário não encontrado', 404);
+
+    const match = await bcrypt.compare(senhaAtual, user.password);
+    if (!match) throw new AppError('Senha atual incorreta', 400);
+
+    const hashed = await bcrypt.hash(novaSenha, 10);
+    await prisma.user.update({ where: { id: req.user!.userId }, data: { password: hashed } });
+    res.json({ message: 'Senha alterada com sucesso' });
+  } catch (err) { next(err); }
+});
+
 // ── POST /api/auth/logout ──────────────────────
 authRouter.post('/logout', authenticate, async (req: Request, res: Response) => {
   // Com JWT stateless, apenas confirma logout

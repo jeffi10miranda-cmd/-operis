@@ -31,15 +31,16 @@ interface NavItem {
   badge?: number;
 }
 
-function buildNavItems(alertBadge?: number): NavItem[] {
-  return [
-    { label: 'Central', href: '/central', icon: Home },
-    { label: 'Ronda', href: '/ronda', icon: Calendar },
-    { label: 'Comparativos', href: '/comparativos', icon: BarChart3 },
-    { label: 'Histórico',   href: '/historico',    icon: TableProperties },
-    { label: 'Alertas', href: '/alertas', icon: Bell, badge: alertBadge },
-    { label: 'Configurações', href: '/configuracoes', icon: Settings },
+function buildNavItems(alertBadge?: number, isAdmin = false): NavItem[] {
+  const items: NavItem[] = [
+    { label: 'Central',      href: '/central',      icon: Home           },
+    { label: 'Ronda',        href: '/ronda',        icon: Calendar       },
+    { label: 'Comparativos', href: '/comparativos', icon: BarChart3      },
+    { label: 'Histórico',    href: '/historico',    icon: TableProperties },
+    { label: 'Alertas',      href: '/alertas',      icon: Bell, badge: alertBadge },
   ];
+  if (isAdmin) items.push({ label: 'Configurações', href: '/configuracoes', icon: Settings });
+  return items;
 }
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -155,7 +156,8 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
 
   // Badge: usa dado real (token) ou mock (preview)
   const naoLidos = (contagem as { total?: number } | undefined)?.total ?? (isPreview ? MOCK_BADGE : 0);
-  const navItems = buildNavItems(naoLidos > 0 ? naoLidos : undefined);
+  const isAdmin  = (authUser as { role?: string } | undefined)?.role === 'ADMIN';
+  const navItems = buildNavItems(naoLidos > 0 ? naoLidos : undefined, isAdmin);
 
   // Alertas recentes: usa dado real ou mock
   const apiAlerts = (alertasData as PaginatedResponse<Alerta> | undefined)?.items;

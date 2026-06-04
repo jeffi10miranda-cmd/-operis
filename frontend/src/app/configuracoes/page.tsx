@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthUser } from '@/lib/api';
 import {
   fetchConfiguracao,
   saveConfiguracao,
@@ -723,6 +725,19 @@ function ClockTemaSection() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ConfiguracoesPage() {
+  const router = useRouter();
+  const { data: authUser, isLoading } = useAuthUser();
+
+  useEffect(() => {
+    if (!isLoading && authUser && (authUser as { role?: string }).role !== 'ADMIN') {
+      router.replace('/central');
+    }
+  }, [authUser, isLoading, router]);
+
+  if (isLoading || !authUser || (authUser as { role?: string }).role !== 'ADMIN') {
+    return null;
+  }
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       <SheetsSection />
