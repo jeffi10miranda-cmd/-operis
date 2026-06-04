@@ -156,8 +156,10 @@ function OperisLayoutInner({ children }: { children: ReactNode }) {
 
   // Badge: usa dado real (token) ou mock (preview)
   const naoLidos = (contagem as { total?: number } | undefined)?.total ?? (isPreview ? MOCK_BADGE : 0);
-  const isAdmin  = (authUser as { role?: string } | undefined)?.role === 'ADMIN';
-  const navItems = buildNavItems(naoLidos > 0 ? naoLidos : undefined, isAdmin);
+  const userRole = (authUser as { role?: string } | undefined)?.role;
+  const isAdmin  = userRole === 'ADMIN';
+  const podeConfig = isAdmin || userRole === 'SUPERVISOR';
+  const navItems = buildNavItems(naoLidos > 0 ? naoLidos : undefined, podeConfig);
 
   // Alertas recentes: usa dado real ou mock
   const apiAlerts = (alertasData as PaginatedResponse<Alerta> | undefined)?.items;

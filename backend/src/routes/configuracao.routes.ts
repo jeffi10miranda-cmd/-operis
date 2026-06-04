@@ -39,7 +39,7 @@ configuracaoRouter.put('/', authorize('ADMIN', 'SUPERVISOR'), async (req, res, n
 });
 
 // GET /api/configuracao/usuarios (lista usuários)
-configuracaoRouter.get('/usuarios', authorize('ADMIN'), async (_req, res, next) => {
+configuracaoRouter.get('/usuarios', authorize('ADMIN', 'SUPERVISOR'), async (_req, res, next) => {
   try {
     const usuarios = await prisma.user.findMany({
       select: { id: true, name: true, email: true, role: true, active: true, createdAt: true },
@@ -50,11 +50,26 @@ configuracaoRouter.get('/usuarios', authorize('ADMIN'), async (_req, res, next) 
 });
 
 // PATCH /api/configuracao/usuarios/:id/role
-configuracaoRouter.patch('/usuarios/:id/role', authorize('ADMIN'), async (req, res, next) => {
+configuracaoRouter.patch('/usuarios/:id/role', authorize('ADMIN', 'SUPERVISOR'), async (req, res, next) => {
   try {
     const { role } = z.object({
       role: z.enum(['ADMIN','SUPERVISOR','OPERADOR','VISUALIZADOR']),
     }).parse(req.body);
+
+    const solicitante = req.user!;
+    const alvo = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, role: true } });
+    if (!alvo) { res.status(404).json({ error: 'Usuário não encontrado.' }); return; }
+
+    // Admin não pode se rebaixar
+    if (alvo.id === solicitante.userId) {
+      res.status(400).json({ error: 'Você não pode alterar seu próprio perfil.' }); return;
+    }
+
+    // Supervisor não pode tocar em admins
+    if (solicitante.role === 'SUPERVISOR' && (alvo.role === 'ADMIN' || role === 'ADMIN')) {
+      res.status(403).json({ error: 'Supervisores não podem alterar o perfil de administradores.' }); return;
+    }
+
     const user = await prisma.user.update({
       where:  { id: req.params.id },
       data:   { role },
@@ -65,20 +80,23 @@ configuracaoRouter.patch('/usuarios/:id/role', authorize('ADMIN'), async (req, r
 });
 
 // DELETE /api/configuracao/usuarios/:id
-configuracaoRouter.delete('/usuarios/:id', authorize('ADMIN'), async (req, res, next) => {
+configuracaoRouter.delete('/usuarios/:id', authorize('ADMIN', 'SUPERVISOR'), async (req, res, next) => {
   try {
     const { id } = req.params;
+    const solicitante = req.user!;
 
-    if (id === req.user?.userId) {
-      res.status(400).json({ error: 'Você não pode excluir sua própria conta.' });
-      return;
+    if (id === solicitante.userId) {
+      res.status(400).json({ error: 'Você não pode excluir sua própria conta.' }); return;
     }
 
-    // Verifica que o usuário existe
-    const existe = await prisma.user.findUnique({ where: { id }, select: { id: true } });
-    if (!existe) { res.status(404).json({ error: 'Usuário não encontrado.' }); return; }
+    const alvo = await prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
+    if (!alvo) { res.status(404).json({ error: 'Usuário não encontrado.' }); return; }
 
-    // Limpa FK antes de deletar (evita constraint violation)
+    // Supervisor não pode excluir admin
+    if (solicitante.role === 'SUPERVISOR' && alvo.role === 'ADMIN') {
+      res.status(403).json({ error: 'Supervisores não podem excluir administradores.' }); return;
+    }
+
     await prisma.$transaction([
       prisma.alerta.updateMany({ where: { criadoPor: id }, data: { criadoPor: null } }),
       prisma.user.delete({ where: { id } }),

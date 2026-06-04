@@ -454,7 +454,7 @@ const roleLabel: Record<string, { label: string; badge: string }> = {
 
 const ROLES_ORDEM = ['VISUALIZADOR', 'OPERADOR', 'SUPERVISOR', 'ADMIN'] as const;
 
-function UsuariosSection() {
+function UsuariosSection({ currentRole }: { currentRole: string }) {
   const [users, setUsers]     = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [showPwd, setShowPwd]   = useState(false);
@@ -521,8 +521,14 @@ function UsuariosSection() {
           const rc  = roleLabel[u.role] ?? roleLabel.VISUALIZADOR;
           const idx = ROLES_ORDEM.indexOf(u.role as typeof ROLES_ORDEM[number]);
           const idxValido  = idx >= 0;
-          const podeSobir  = idxValido && idx < ROLES_ORDEM.length - 1;
-          const podeDescer = idxValido && idx > 0;
+          const ehAdmin    = u.role === 'ADMIN';
+          // Supervisor não pode promover para ADMIN nem mexer em ADMINs
+          const bloqueadoParaSupervisor = currentRole === 'SUPERVISOR' && ehAdmin;
+          // Ninguém pode mexer em si mesmo
+          const podeSobir  = idxValido && idx < ROLES_ORDEM.length - 1 && !bloqueadoParaSupervisor
+                            && !(currentRole === 'SUPERVISOR' && ROLES_ORDEM[idx + 1] === 'ADMIN');
+          const podeDescer = idxValido && idx > 0 && !bloqueadoParaSupervisor;
+          const podeExcluir = !bloqueadoParaSupervisor;
           const busy = actionId === u.id;
           return (
             <div key={u.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl">
@@ -563,9 +569,9 @@ function UsuariosSection() {
                 {/* Excluir */}
                 <button
                   onClick={() => deletar(u.id, u.name)}
-                  disabled={busy}
-                  title="Excluir usuário"
-                  className="p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 transition-colors ml-1"
+                  disabled={busy || !podeExcluir}
+                  title={podeExcluir ? 'Excluir usuário' : 'Sem permissão'}
+                  className="p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 disabled:cursor-not-allowed transition-colors ml-1"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -798,12 +804,14 @@ export default function ConfiguracoesPage() {
   const { data: authUser, isLoading } = useAuthUser();
 
   useEffect(() => {
-    if (!isLoading && authUser && (authUser as { role?: string }).role !== 'ADMIN') {
-      router.replace('/central');
+    if (!isLoading && authUser) {
+      const r = (authUser as { role?: string }).role;
+      if (r !== 'ADMIN' && r !== 'SUPERVISOR') router.replace('/central');
     }
   }, [authUser, isLoading, router]);
 
-  if (isLoading || !authUser || (authUser as { role?: string }).role !== 'ADMIN') {
+  const role = (authUser as { role?: string })?.role;
+  if (isLoading || !authUser || (role !== 'ADMIN' && role !== 'SUPERVISOR')) {
     return null;
   }
 
@@ -812,7 +820,7 @@ export default function ConfiguracoesPage() {
       <SheetsSection />
       <LimitesSection />
       <ClockTemaSection />
-      <UsuariosSection />
+      <UsuariosSection currentRole={role} />
       <AlertRulesSection />
     </div>
   );
