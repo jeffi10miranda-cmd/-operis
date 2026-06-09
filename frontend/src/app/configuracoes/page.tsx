@@ -713,7 +713,7 @@ function AlertRulesSection() {
 }
 
 // ─── Seção: Produtos ──────────────────────────────────────────────────────────
-const PRODUTO_VAZIO = { codigo: '', descricao: '', ciclopadrao: '', cavidadepadrao: '' };
+const PRODUTO_VAZIO = { descricao: '', ciclopadrao: '', cavidadepadrao: '' };
 
 function ProdutosSection() {
   const [produtos, setProdutos]     = useState<Produto[]>([]);
@@ -739,7 +739,7 @@ function ProdutosSection() {
 
   function abrirEdicao(p: Produto) {
     setEditando(p);
-    setForm({ codigo: p.codigo, descricao: p.descricao, ciclopadrao: String(p.ciclopadrao), cavidadepadrao: String(p.cavidadepadrao) });
+    setForm({ descricao: p.descricao, ciclopadrao: String(p.ciclopadrao), cavidadepadrao: String(p.cavidadepadrao) });
     setError('');
     setShowForm(true);
   }
@@ -755,7 +755,6 @@ function ProdutosSection() {
     e.preventDefault();
     setSaving(true); setError('');
     const payload = {
-      codigo:         form.codigo.trim(),
       descricao:      form.descricao.trim(),
       ciclopadrao:    parseInt(form.ciclopadrao),
       cavidadepadrao: parseInt(form.cavidadepadrao),
@@ -765,7 +764,8 @@ function ProdutosSection() {
         const updated = await atualizarProduto(editando.id, payload) as Produto;
         setProdutos((p) => p.map((x) => x.id === editando.id ? updated : x));
       } else {
-        const created = await criarProduto(payload) as Produto;
+        const autoCode = 'P' + Date.now().toString(36).toUpperCase().slice(-6);
+        const created = await criarProduto({ ...payload, codigo: autoCode }) as Produto;
         setProdutos((p) => [...p, created]);
       }
       fecharForm();
@@ -810,13 +810,12 @@ function ProdutosSection() {
             <div key={p.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-operis-dark/10 flex items-center justify-center text-operis-dark font-bold text-xs flex-shrink-0">
-                  {p.codigo.slice(0, 3).toUpperCase()}
+                  {p.descricao.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-operis-dark truncate">{p.descricao}</p>
                   <p className="text-xs text-gray-400">
-                    Cód: <span className="font-mono">{p.codigo}</span>
-                    {' · '}Ciclo: <strong>{p.ciclopadrao}s</strong>
+                    Ciclo: <strong>{p.ciclopadrao}s</strong>
                     {' · '}Cav: <strong>{p.cavidadepadrao}</strong>
                   </p>
                 </div>
@@ -853,12 +852,11 @@ function ProdutosSection() {
             </button>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <input placeholder="Código (ex: FR-12)" required value={form.codigo}
-              onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))}
-              className="input text-sm" />
-            <input placeholder="Descrição" required value={form.descricao}
-              onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
-              className="input text-sm" />
+            <div className="col-span-2">
+              <input placeholder="Descrição do produto" required value={form.descricao}
+                onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
+                className="input text-sm w-full" />
+            </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Ciclo padrão (s)</label>
               <input type="number" min="1" required value={form.ciclopadrao}

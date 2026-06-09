@@ -664,7 +664,7 @@ function TabProdutos() {
   const [carregando, setCarregando] = useState(true);
   const [formAberto, setFormAberto] = useState(false);
   const [editId, setEditId]         = useState<string | null>(null);
-  const [form, setForm]             = useState({ codigo: '', descricao: '', ciclopadrao: '', cavidadepadrao: '' });
+  const [form, setForm]             = useState({ descricao: '', ciclopadrao: '', cavidadepadrao: '' });
   const [salvando, setSalvando]     = useState(false);
   const [actionId, setActionId]     = useState<string | null>(null);
   const [erro, setErro]             = useState('');
@@ -679,33 +679,29 @@ function TabProdutos() {
   const lista = useMemo(() => {
     if (!busca.trim()) return produtos;
     const q = busca.toLowerCase();
-    return produtos.filter(p =>
-      p.descricao.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q),
-    );
+    return produtos.filter(p => p.descricao.toLowerCase().includes(q));
   }, [busca, produtos]);
 
   function abrirNovo() {
     setEditId(null);
-    setForm({ codigo: '', descricao: '', ciclopadrao: '', cavidadepadrao: '' });
+    setForm({ descricao: '', ciclopadrao: '', cavidadepadrao: '' });
     setErro('');
     setFormAberto(true);
   }
 
   function abrirEditar(p: ProdutoLocal) {
     setEditId(p.id);
-    setForm({ codigo: p.codigo, descricao: p.descricao, ciclopadrao: String(p.ciclopadrao), cavidadepadrao: String(p.cavidadepadrao) });
+    setForm({ descricao: p.descricao, ciclopadrao: String(p.ciclopadrao), cavidadepadrao: String(p.cavidadepadrao) });
     setErro('');
     setFormAberto(true);
   }
 
   async function salvar() {
-    if (!form.codigo.trim())        { setErro('Código obrigatório.'); return; }
     if (!form.descricao.trim())     { setErro('Descrição obrigatória.'); return; }
     if (!form.ciclopadrao)          { setErro('Ciclo padrão obrigatório.'); return; }
     if (!form.cavidadepadrao)       { setErro('Cavidade padrão obrigatória.'); return; }
     setSalvando(true); setErro('');
     const payload = {
-      codigo:         form.codigo.trim(),
       descricao:      form.descricao.trim(),
       ciclopadrao:    Number(form.ciclopadrao),
       cavidadepadrao: Number(form.cavidadepadrao),
@@ -715,7 +711,8 @@ function TabProdutos() {
         const updated = await atualizarProduto(editId, payload) as ProdutoLocal;
         setProdutos(prev => prev.map(p => p.id === editId ? updated : p));
       } else {
-        const created = await criarProduto(payload) as ProdutoLocal;
+        const autoCode = 'P' + Date.now().toString(36).toUpperCase().slice(-6);
+        const created = await criarProduto({ ...payload, codigo: autoCode }) as ProdutoLocal;
         setProdutos(prev => [created, ...prev]);
       }
       setFormAberto(false);
@@ -762,16 +759,6 @@ function TabProdutos() {
             </div>
 
             <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Código</label>
-                <input
-                  type="text"
-                  placeholder="Ex: FR-12"
-                  value={form.codigo}
-                  onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))}
-                  className="input text-sm w-full"
-                />
-              </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Descrição</label>
                 <input
@@ -837,8 +824,7 @@ function TabProdutos() {
 
       {/* Tabela */}
       <div className="card overflow-hidden">
-        <div className="grid grid-cols-[1fr_2fr_0.9fr_0.9fr_0.8fr] gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500">
-          <span>Código</span>
+        <div className="grid grid-cols-[2fr_0.9fr_0.9fr_0.8fr] gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500">
           <span>Descrição</span>
           <span className="text-center">Ciclo padrão</span>
           <span className="text-center">Cav. padrão</span>
@@ -859,8 +845,7 @@ function TabProdutos() {
           const busy = actionId === p.id;
           return (
             <div key={p.id}
-              className="grid grid-cols-[1fr_2fr_0.9fr_0.9fr_0.8fr] gap-3 px-5 py-3 border-b border-gray-50 last:border-0 items-center hover:bg-gray-50/50 transition-colors">
-              <span className="text-xs font-mono text-gray-500">{p.codigo}</span>
+              className="grid grid-cols-[2fr_0.9fr_0.9fr_0.8fr] gap-3 px-5 py-3 border-b border-gray-50 last:border-0 items-center hover:bg-gray-50/50 transition-colors">
               <span className="text-sm font-semibold text-operis-dark">{p.descricao}</span>
               <span className="text-center text-sm text-gray-700 font-medium">{p.ciclopadrao}s</span>
               <span className="text-center text-sm text-gray-700 font-medium">{p.cavidadepadrao}</span>
