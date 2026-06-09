@@ -932,7 +932,7 @@ function TabApontar() {
   const { data: produtosRaw } = useProdutos();
   const snapshots    = (snapshotsRaw as any[]) ?? [];
   const ultimoSnaps  = (ultimosRaw  as any[]) ?? [];
-  const produtosReais = (produtosRaw as any[]) ?? MOCK_PRODUTOS;
+  const produtosReais = (produtosRaw as Produto[]) ?? [];
 
   // Hora de início: registra quando o operador começa a preencher
   function registrarInicio() {
