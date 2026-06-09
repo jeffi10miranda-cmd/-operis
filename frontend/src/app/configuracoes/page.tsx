@@ -11,12 +11,16 @@ import {
   criarUsuario,
   atualizarRoleUsuario,
   excluirUsuario,
+  fetchProdutos,
+  criarProduto,
+  atualizarProduto,
+  removerProduto,
 } from '@/lib/api';
-import type { User } from '@/types/operis';
+import type { User, Produto } from '@/types/operis';
 import {
   Sheet, Shield, Bell, Users, Sliders, CheckCircle,
   AlertCircle, Loader2, Eye, EyeOff, Plus, Settings2, Palette,
-  Trash2, ChevronUp, ChevronDown,
+  Trash2, ChevronUp, ChevronDown, Package, Pencil, X,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -708,6 +712,183 @@ function AlertRulesSection() {
   );
 }
 
+// ─── Seção: Produtos ──────────────────────────────────────────────────────────
+const PRODUTO_VAZIO = { codigo: '', descricao: '', ciclopadrao: '', cavidadepadrao: '' };
+
+function ProdutosSection() {
+  const [produtos, setProdutos]     = useState<Produto[]>([]);
+  const [showForm, setShowForm]     = useState(false);
+  const [editando, setEditando]     = useState<Produto | null>(null);
+  const [form, setForm]             = useState(PRODUTO_VAZIO);
+  const [saving, setSaving]         = useState(false);
+  const [actionId, setActionId]     = useState<string | null>(null);
+  const [error, setError]           = useState('');
+
+  useEffect(() => {
+    fetchProdutos()
+      .then((list) => setProdutos(list as Produto[]))
+      .catch(() => {});
+  }, []);
+
+  function abrirNovo() {
+    setEditando(null);
+    setForm(PRODUTO_VAZIO);
+    setError('');
+    setShowForm(true);
+  }
+
+  function abrirEdicao(p: Produto) {
+    setEditando(p);
+    setForm({ codigo: p.codigo, descricao: p.descricao, ciclopadrao: String(p.ciclopadrao), cavidadepadrao: String(p.cavidadepadrao) });
+    setError('');
+    setShowForm(true);
+  }
+
+  function fecharForm() {
+    setShowForm(false);
+    setEditando(null);
+    setForm(PRODUTO_VAZIO);
+    setError('');
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true); setError('');
+    const payload = {
+      codigo:         form.codigo.trim(),
+      descricao:      form.descricao.trim(),
+      ciclopadrao:    parseInt(form.ciclopadrao),
+      cavidadepadrao: parseInt(form.cavidadepadrao),
+    };
+    try {
+      if (editando) {
+        const updated = await atualizarProduto(editando.id, payload) as Produto;
+        setProdutos((p) => p.map((x) => x.id === editando.id ? updated : x));
+      } else {
+        const created = await criarProduto(payload) as Produto;
+        setProdutos((p) => [...p, created]);
+      }
+      fecharForm();
+    } catch (e: unknown) {
+      console.error('[Operis] Erro ao salvar produto:', e);
+      const status = (e as { response?: { status?: number } }).response?.status;
+      if (status === 409) setError('Código já existe. Use um código diferente.');
+      else setError(editando ? 'Erro ao atualizar produto.' : 'Erro ao criar produto.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  async function excluir(id: string, descricao: string) {
+    if (!confirm(`Desativar o produto "${descricao}"?`)) return;
+    setActionId(id); setError('');
+    try {
+      await removerProduto(id);
+      setProdutos((p) => p.filter((x) => x.id !== id));
+    } catch {
+      setError('Erro ao remover produto.');
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  return (
+    <SectionCard
+      title="Produtos Cadastrados"
+      subtitle="Cadastre e edite produtos com ciclo e cavidade padrão"
+      icon={<Package size={18} />}
+    >
+      {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+
+      <div className="space-y-2 mb-4">
+        {produtos.length === 0 && (
+          <p className="text-xs text-gray-400 text-center py-4">Nenhum produto cadastrado.</p>
+        )}
+        {produtos.map((p) => {
+          const busy = actionId === p.id;
+          return (
+            <div key={p.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-operis-dark/10 flex items-center justify-center text-operis-dark font-bold text-xs flex-shrink-0">
+                  {p.codigo.slice(0, 3).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-operis-dark truncate">{p.descricao}</p>
+                  <p className="text-xs text-gray-400">
+                    Cód: <span className="font-mono">{p.codigo}</span>
+                    {' · '}Ciclo: <strong>{p.ciclopadrao}s</strong>
+                    {' · '}Cav: <strong>{p.cavidadepadrao}</strong>
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => abrirEdicao(p)}
+                  disabled={busy}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-30 transition-colors"
+                  title="Editar produto"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={() => excluir(p.id, p.descricao)}
+                  disabled={busy}
+                  className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 transition-colors"
+                  title="Desativar produto"
+                >
+                  {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {showForm ? (
+        <form onSubmit={handleSubmit} className="p-4 border border-dashed border-gray-200 rounded-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-operis-dark">{editando ? 'Editar produto' : 'Novo produto'}</p>
+            <button type="button" onClick={fecharForm} className="p-1 text-gray-400 hover:text-gray-600">
+              <X size={14} />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <input placeholder="Código (ex: FR-12)" required value={form.codigo}
+              onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))}
+              className="input text-sm" />
+            <input placeholder="Descrição" required value={form.descricao}
+              onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
+              className="input text-sm" />
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Ciclo padrão (s)</label>
+              <input type="number" min="1" required value={form.ciclopadrao}
+                onChange={(e) => setForm((p) => ({ ...p, ciclopadrao: e.target.value }))}
+                className="input text-sm w-full" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Cavidades padrão</label>
+              <input type="number" min="1" required value={form.cavidadepadrao}
+                onChange={(e) => setForm((p) => ({ ...p, cavidadepadrao: e.target.value }))}
+                className="input text-sm w-full" />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={fecharForm} className="btn-ghost text-xs">Cancelar</button>
+            <button type="submit" disabled={saving} className="btn-primary text-xs disabled:opacity-60">
+              {saving ? 'Salvando...' : editando ? 'Salvar alterações' : 'Cadastrar'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button onClick={abrirNovo}
+          className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:text-operis-dark hover:border-operis-dark transition-colors font-medium">
+          <Plus size={16} /> Adicionar produto
+        </button>
+      )}
+    </SectionCard>
+  );
+}
+
 // ─── Seção: Aparência ─────────────────────────────────────────────────────────
 const CLOCK_TEMAS = [
   {
@@ -819,6 +1000,7 @@ export default function ConfiguracoesPage() {
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       <SheetsSection />
       <LimitesSection />
+      <ProdutosSection />
       <ClockTemaSection />
       <UsuariosSection currentRole={role} />
       <AlertRulesSection />

@@ -1,13 +1,14 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useSnapshotsHoje, useSnapshotsUltimo, useProdutos, useHorasStatus, api } from '@/lib/api';
+import { useSnapshotsHoje, useSnapshotsUltimo, useProdutos, useHorasStatus, useAuthUser, api, fetchProdutos, criarProduto, atualizarProduto, removerProduto } from '@/lib/api';
 import { RondaCard } from '@/components/ronda-card';
 import {
   Calendar, Search, Plus, Edit2, PowerOff, Trash2,
   CheckCircle2, AlertTriangle, AlertCircle,
   Package, ClipboardList, LayoutList, ArrowUpDown,
   ClipboardCheck, Save, RotateCcw, ChevronRight, Info, Clock,
+  Loader2, X,
 } from 'lucide-react';
 
 // ── Tipos ─────────────────────────────────────
@@ -20,6 +21,7 @@ type StatusOp =
 
 interface Produto {
   id: string;
+  codigo: string;
   descricao: string;
   ciclopadrao: number;
   cavidadepadrao: number;
@@ -67,51 +69,51 @@ const TURNO_LABEL: Record<Turno, string> = {
   TERCEIRO: '3º Turno',
 };
 
-// ── Banco de produtos mock ────────────────────
+// ── Banco de produtos mock (fallback offline) ─
 const MOCK_PRODUTOS: Produto[] = [
-  { id:'p01', descricao:'Frasco reto 12',            ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
-  { id:'p02', descricao:'Haste 48 mm',               ciclopadrao:30,   cavidadepadrao:32,  ativo:true },
-  { id:'p03', descricao:'Peneira - Rosa',             ciclopadrao:22,   cavidadepadrao:16,  ativo:true },
-  { id:'p04', descricao:'Tampa Kelly - Preto',        ciclopadrao:20,   cavidadepadrao:16,  ativo:true },
-  { id:'p05', descricao:'Haste 31mm BT - Cinza',      ciclopadrao:20,   cavidadepadrao:32,  ativo:true },
-  { id:'p06', descricao:'Tampa Cibeli C/R - Preto',   ciclopadrao:24,   cavidadepadrao:16,  ativo:true },
-  { id:'p07', descricao:'Tampa Cibeli - Amarelo',     ciclopadrao:24,   cavidadepadrao:32,  ativo:true },
-  { id:'p08', descricao:'Tampa Stick XL - Branco',    ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
-  { id:'p09', descricao:'Haste 55mm - Preto',         ciclopadrao:30,   cavidadepadrao:32,  ativo:true },
-  { id:'p10', descricao:'Base Stick XL - Azul',       ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
-  { id:'p11', descricao:'Haste Flat 34,20 mm',        ciclopadrao:30,   cavidadepadrao:128, ativo:true },
-  { id:'p12', descricao:'Tampa Novo Toque - Branco',  ciclopadrao:23,   cavidadepadrao:32,  ativo:true },
-  { id:'p13', descricao:'Haste 67mm c/adaptador',     ciclopadrao:35,   cavidadepadrao:32,  ativo:true },
-  { id:'p14', descricao:'Corpo Stick XL - Nude',      ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
-  { id:'p15', descricao:'Frasco reto 03',             ciclopadrao:55,   cavidadepadrao:24,  ativo:true },
-  { id:'p16', descricao:'Frasco reto 05',             ciclopadrao:55,   cavidadepadrao:24,  ativo:true },
-  { id:'p17', descricao:'Frasco reto 05 - Marrom',    ciclopadrao:55,   cavidadepadrao:16,  ativo:true },
-  { id:'p18', descricao:'Pote',                       ciclopadrao:50,   cavidadepadrao:16,  ativo:true },
-  { id:'p19', descricao:'Frasco reto 10 - Marrom',    ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
-  { id:'p20', descricao:'Tampa Verônica - Preto',     ciclopadrao:34,   cavidadepadrao:32,  ativo:true },
-  { id:'p21', descricao:'Batoque BL 02 - Laranja',    ciclopadrao:25,   cavidadepadrao:32,  ativo:true },
-  { id:'p22', descricao:'Haste 80mm c/adaptador',     ciclopadrao:35,   cavidadepadrao:32,  ativo:true },
-  { id:'p23', descricao:'Batoque BL 03 Cônico',       ciclopadrao:15,   cavidadepadrao:16,  ativo:true },
-  { id:'p24', descricao:'Frasco reto 06',             ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
-  { id:'p25', descricao:'Tampa Impala - Branco',      ciclopadrao:16,   cavidadepadrao:24,  ativo:true },
-  { id:'p26', descricao:'Haste 38mm Redonda',         ciclopadrao:30,   cavidadepadrao:128, ativo:true },
-  { id:'p27', descricao:'Tampa Amanda - Salmão',      ciclopadrao:14,   cavidadepadrao:32,  ativo:true },
-  { id:'p28', descricao:'Trava da Peneira C/R',       ciclopadrao:25,   cavidadepadrao:32,  ativo:true },
-  { id:'p29', descricao:'Tampa Cibeli C/R Fosca',     ciclopadrao:20,   cavidadepadrao:16,  ativo:true },
-  { id:'p30', descricao:'Tampa Brilho Roll-on',       ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
-  { id:'p31', descricao:'Caneca Stick XL',            ciclopadrao:20,   cavidadepadrao:32,  ativo:true },
-  { id:'p32', descricao:'Frasco reto 10 6ML',         ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
-  { id:'p33', descricao:'Batoque BL 03',              ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
-  { id:'p34', descricao:'Frasco reto 06 - Amarelo',   ciclopadrao:30,   cavidadepadrao:32,  ativo:true },
-  { id:'p35', descricao:'Batoque BL 02',              ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
-  { id:'p36', descricao:'Haste 31mm Flat',            ciclopadrao:25,   cavidadepadrao:32,  ativo:true },
-  { id:'p37', descricao:'Batoque BL 03 - Preto',      ciclopadrao:30,   cavidadepadrao:128, ativo:true },
-  { id:'p38', descricao:'Tampa Stick XL - Marrom',    ciclopadrao:30,   cavidadepadrao:32,  ativo:true },
-  { id:'p39', descricao:'Tampa Cibeli - Rosa',        ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
-  { id:'p40', descricao:'Haste 31mm BT - Branco',     ciclopadrao:24,   cavidadepadrao:16,  ativo:true },
-  { id:'p41', descricao:'Tampa Amanda - Rosa',        ciclopadrao:20,   cavidadepadrao:16,  ativo:true },
-  { id:'p42', descricao:'Peneira - Verde',            ciclopadrao:25,   cavidadepadrao:24,  ativo:true },
-  { id:'p43', descricao:'Base Stick - Azul',          ciclopadrao:22,   cavidadepadrao:32,  ativo:true },
+  { id:'p01', codigo:'p01', descricao:'Frasco reto 12',            ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
+  { id:'p02', codigo:'p02', descricao:'Haste 48 mm',               ciclopadrao:30,   cavidadepadrao:32,  ativo:true },
+  { id:'p03', codigo:'p03', descricao:'Peneira - Rosa',             ciclopadrao:22,   cavidadepadrao:16,  ativo:true },
+  { id:'p04', codigo:'p04', descricao:'Tampa Kelly - Preto',        ciclopadrao:20,   cavidadepadrao:16,  ativo:true },
+  { id:'p05', codigo:'p05', descricao:'Haste 31mm BT - Cinza',      ciclopadrao:20,   cavidadepadrao:32,  ativo:true },
+  { id:'p06', codigo:'p06', descricao:'Tampa Cibeli C/R - Preto',   ciclopadrao:24,   cavidadepadrao:16,  ativo:true },
+  { id:'p07', codigo:'p07', descricao:'Tampa Cibeli - Amarelo',     ciclopadrao:24,   cavidadepadrao:32,  ativo:true },
+  { id:'p08', codigo:'p08', descricao:'Tampa Stick XL - Branco',    ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
+  { id:'p09', codigo:'p09', descricao:'Haste 55mm - Preto',         ciclopadrao:30,   cavidadepadrao:32,  ativo:true },
+  { id:'p10', codigo:'p10', descricao:'Base Stick XL - Azul',       ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
+  { id:'p11', codigo:'p11', descricao:'Haste Flat 34,20 mm',        ciclopadrao:30,   cavidadepadrao:128, ativo:true },
+  { id:'p12', codigo:'p12', descricao:'Tampa Novo Toque - Branco',  ciclopadrao:23,   cavidadepadrao:32,  ativo:true },
+  { id:'p13', codigo:'p13', descricao:'Haste 67mm c/adaptador',     ciclopadrao:35,   cavidadepadrao:32,  ativo:true },
+  { id:'p14', codigo:'p14', descricao:'Corpo Stick XL - Nude',      ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
+  { id:'p15', codigo:'p15', descricao:'Frasco reto 03',             ciclopadrao:55,   cavidadepadrao:24,  ativo:true },
+  { id:'p16', codigo:'p16', descricao:'Frasco reto 05',             ciclopadrao:55,   cavidadepadrao:24,  ativo:true },
+  { id:'p17', codigo:'p17', descricao:'Frasco reto 05 - Marrom',    ciclopadrao:55,   cavidadepadrao:16,  ativo:true },
+  { id:'p18', codigo:'p18', descricao:'Pote',                       ciclopadrao:50,   cavidadepadrao:16,  ativo:true },
+  { id:'p19', codigo:'p19', descricao:'Frasco reto 10 - Marrom',    ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
+  { id:'p20', codigo:'p20', descricao:'Tampa Verônica - Preto',     ciclopadrao:34,   cavidadepadrao:32,  ativo:true },
+  { id:'p21', codigo:'p21', descricao:'Batoque BL 02 - Laranja',    ciclopadrao:25,   cavidadepadrao:32,  ativo:true },
+  { id:'p22', codigo:'p22', descricao:'Haste 80mm c/adaptador',     ciclopadrao:35,   cavidadepadrao:32,  ativo:true },
+  { id:'p23', codigo:'p23', descricao:'Batoque BL 03 Cônico',       ciclopadrao:15,   cavidadepadrao:16,  ativo:true },
+  { id:'p24', codigo:'p24', descricao:'Frasco reto 06',             ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
+  { id:'p25', codigo:'p25', descricao:'Tampa Impala - Branco',      ciclopadrao:16,   cavidadepadrao:24,  ativo:true },
+  { id:'p26', codigo:'p26', descricao:'Haste 38mm Redonda',         ciclopadrao:30,   cavidadepadrao:128, ativo:true },
+  { id:'p27', codigo:'p27', descricao:'Tampa Amanda - Salmão',      ciclopadrao:14,   cavidadepadrao:32,  ativo:true },
+  { id:'p28', codigo:'p28', descricao:'Trava da Peneira C/R',       ciclopadrao:25,   cavidadepadrao:32,  ativo:true },
+  { id:'p29', codigo:'p29', descricao:'Tampa Cibeli C/R Fosca',     ciclopadrao:20,   cavidadepadrao:16,  ativo:true },
+  { id:'p30', codigo:'p30', descricao:'Tampa Brilho Roll-on',       ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
+  { id:'p31', codigo:'p31', descricao:'Caneca Stick XL',            ciclopadrao:20,   cavidadepadrao:32,  ativo:true },
+  { id:'p32', codigo:'p32', descricao:'Frasco reto 10 6ML',         ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
+  { id:'p33', codigo:'p33', descricao:'Batoque BL 03',              ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
+  { id:'p34', codigo:'p34', descricao:'Frasco reto 06 - Amarelo',   ciclopadrao:30,   cavidadepadrao:32,  ativo:true },
+  { id:'p35', codigo:'p35', descricao:'Batoque BL 02',              ciclopadrao:50,   cavidadepadrao:24,  ativo:true },
+  { id:'p36', codigo:'p36', descricao:'Haste 31mm Flat',            ciclopadrao:25,   cavidadepadrao:32,  ativo:true },
+  { id:'p37', codigo:'p37', descricao:'Batoque BL 03 - Preto',      ciclopadrao:30,   cavidadepadrao:128, ativo:true },
+  { id:'p38', codigo:'p38', descricao:'Tampa Stick XL - Marrom',    ciclopadrao:30,   cavidadepadrao:32,  ativo:true },
+  { id:'p39', codigo:'p39', descricao:'Tampa Cibeli - Rosa',        ciclopadrao:25,   cavidadepadrao:16,  ativo:true },
+  { id:'p40', codigo:'p40', descricao:'Haste 31mm BT - Branco',     ciclopadrao:24,   cavidadepadrao:16,  ativo:true },
+  { id:'p41', codigo:'p41', descricao:'Tampa Amanda - Rosa',        ciclopadrao:20,   cavidadepadrao:16,  ativo:true },
+  { id:'p42', codigo:'p42', descricao:'Peneira - Verde',            ciclopadrao:25,   cavidadepadrao:24,  ativo:true },
+  { id:'p43', codigo:'p43', descricao:'Base Stick - Azul',          ciclopadrao:22,   cavidadepadrao:32,  ativo:true },
 ];
 
 // ── Registros mock ────────────────────────────
@@ -654,58 +656,93 @@ function TabResumoDiario() {
 interface ProdutoLocal extends Produto { editando?: boolean }
 
 function TabProdutos() {
-  const [busca, setBusca]         = useState('');
-  const [produtos, setProdutos]   = useState<ProdutoLocal[]>(MOCK_PRODUTOS);
+  const { data: session } = useAuthUser();
+  const canEdit = session?.role === 'ADMIN' || session?.role === 'SUPERVISOR';
+
+  const [busca, setBusca]           = useState('');
+  const [produtos, setProdutos]     = useState<ProdutoLocal[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [formAberto, setFormAberto] = useState(false);
-  const [editId, setEditId]       = useState<string | null>(null);
-  const [form, setForm]           = useState({ descricao: '', ciclopadrao: '', cavidadepadrao: '' });
-  const [erro, setErro]           = useState('');
+  const [editId, setEditId]         = useState<string | null>(null);
+  const [form, setForm]             = useState({ codigo: '', descricao: '', ciclopadrao: '', cavidadepadrao: '' });
+  const [salvando, setSalvando]     = useState(false);
+  const [actionId, setActionId]     = useState<string | null>(null);
+  const [erro, setErro]             = useState('');
+
+  useEffect(() => {
+    fetchProdutos()
+      .then((list) => setProdutos(list as ProdutoLocal[]))
+      .catch(() => {})
+      .finally(() => setCarregando(false));
+  }, []);
 
   const lista = useMemo(() => {
     if (!busca.trim()) return produtos;
     const q = busca.toLowerCase();
-    return produtos.filter(p => p.descricao.toLowerCase().includes(q));
+    return produtos.filter(p =>
+      p.descricao.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q),
+    );
   }, [busca, produtos]);
 
   function abrirNovo() {
     setEditId(null);
-    setForm({ descricao: '', ciclopadrao: '', cavidadepadrao: '' });
+    setForm({ codigo: '', descricao: '', ciclopadrao: '', cavidadepadrao: '' });
     setErro('');
     setFormAberto(true);
   }
 
   function abrirEditar(p: ProdutoLocal) {
     setEditId(p.id);
-    setForm({ descricao: p.descricao, ciclopadrao: String(p.ciclopadrao), cavidadepadrao: String(p.cavidadepadrao) });
+    setForm({ codigo: p.codigo, descricao: p.descricao, ciclopadrao: String(p.ciclopadrao), cavidadepadrao: String(p.cavidadepadrao) });
     setErro('');
     setFormAberto(true);
   }
 
-  function salvar() {
+  async function salvar() {
+    if (!form.codigo.trim())        { setErro('Código obrigatório.'); return; }
     if (!form.descricao.trim())     { setErro('Descrição obrigatória.'); return; }
     if (!form.ciclopadrao)          { setErro('Ciclo padrão obrigatório.'); return; }
     if (!form.cavidadepadrao)       { setErro('Cavidade padrão obrigatória.'); return; }
-    if (editId) {
-      setProdutos(prev => prev.map(p => p.id === editId
-        ? { ...p, descricao: form.descricao.trim(), ciclopadrao: Number(form.ciclopadrao), cavidadepadrao: Number(form.cavidadepadrao) }
-        : p));
-    } else {
-      const novo: ProdutoLocal = {
-        id: `p${Date.now()}`,
-        descricao: form.descricao.trim(),
-        ciclopadrao: Number(form.ciclopadrao),
-        cavidadepadrao: Number(form.cavidadepadrao),
-        ativo: true,
-      };
-      setProdutos(prev => [novo, ...prev]);
+    setSalvando(true); setErro('');
+    const payload = {
+      codigo:         form.codigo.trim(),
+      descricao:      form.descricao.trim(),
+      ciclopadrao:    Number(form.ciclopadrao),
+      cavidadepadrao: Number(form.cavidadepadrao),
+    };
+    try {
+      if (editId) {
+        const updated = await atualizarProduto(editId, payload) as ProdutoLocal;
+        setProdutos(prev => prev.map(p => p.id === editId ? updated : p));
+      } else {
+        const created = await criarProduto(payload) as ProdutoLocal;
+        setProdutos(prev => [created, ...prev]);
+      }
+      setFormAberto(false);
+      setErro('');
+    } catch (e: unknown) {
+      console.error('[Operis] Erro ao salvar produto:', e);
+      const status = (e as { response?: { status?: number } }).response?.status;
+      if (status === 403) setErro('Sem permissão. Apenas ADMIN ou SUPERVISOR podem editar produtos.');
+      else if (status === 409) setErro('Código já existe. Use um código diferente.');
+      else setErro(editId ? 'Erro ao atualizar produto.' : 'Erro ao cadastrar produto.');
+    } finally {
+      setSalvando(false);
     }
-    setFormAberto(false);
-    setErro('');
   }
 
-  function excluir(id: string) {
-    if (confirm('Excluir este produto?')) {
+  async function excluir(id: string, descricao: string) {
+    if (!confirm(`Desativar o produto "${descricao}"?`)) return;
+    setActionId(id); setErro('');
+    try {
+      await removerProduto(id);
       setProdutos(prev => prev.filter(p => p.id !== id));
+    } catch (e: unknown) {
+      console.error('[Operis] Erro ao remover produto:', e);
+      const status = (e as { response?: { status?: number } }).response?.status;
+      setErro(status === 403 ? 'Sem permissão para excluir.' : 'Erro ao remover produto.');
+    } finally {
+      setActionId(null);
     }
   }
 
@@ -720,11 +757,21 @@ function TabProdutos() {
                 {editId ? 'Editar produto' : 'Novo produto'}
               </h2>
               <button onClick={() => setFormAberto(false)} className="text-gray-400 hover:text-gray-600">
-                <Trash2 size={16} className="rotate-0" />
+                <X size={16} />
               </button>
             </div>
 
             <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Código</label>
+                <input
+                  type="text"
+                  placeholder="Ex: FR-12"
+                  value={form.codigo}
+                  onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))}
+                  className="input text-sm w-full"
+                />
+              </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Descrição</label>
                 <input
@@ -765,8 +812,8 @@ function TabProdutos() {
 
             <div className="flex gap-2 justify-end pt-1">
               <button onClick={() => setFormAberto(false)} className="btn-ghost text-sm">Cancelar</button>
-              <button onClick={salvar} className="btn-primary text-sm gap-1.5">
-                <CheckCircle2 size={14} /> {editId ? 'Salvar alterações' : 'Cadastrar produto'}
+              <button onClick={salvar} disabled={salvando} className="btn-primary text-sm gap-1.5 disabled:opacity-60">
+                {salvando ? <><Loader2 size={14} className="animate-spin" /> Salvando...</> : <><CheckCircle2 size={14} /> {editId ? 'Salvar alterações' : 'Cadastrar produto'}</>}
               </button>
             </div>
           </div>
@@ -781,43 +828,57 @@ function TabProdutos() {
             onChange={e => setBusca(e.target.value)}
             className="input pl-8 w-64 text-xs" />
         </div>
-        <button onClick={abrirNovo} className="btn-primary text-sm gap-2">
-          <Plus size={14} /> Novo Produto
-        </button>
+        {canEdit && (
+          <button onClick={abrirNovo} className="btn-primary text-sm gap-2">
+            <Plus size={14} /> Novo Produto
+          </button>
+        )}
       </div>
 
       {/* Tabela */}
       <div className="card overflow-hidden">
-        <div className="grid grid-cols-[2fr_0.9fr_0.9fr_0.8fr] gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500">
+        <div className="grid grid-cols-[1fr_2fr_0.9fr_0.9fr_0.8fr] gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500">
+          <span>Código</span>
           <span>Descrição</span>
           <span className="text-center">Ciclo padrão</span>
           <span className="text-center">Cav. padrão</span>
           <span className="text-right">Ações</span>
         </div>
 
-        {lista.length === 0 ? (
+        {carregando ? (
+          <div className="py-10 text-center text-gray-400">
+            <Loader2 size={24} className="mx-auto mb-2 animate-spin opacity-40" />
+            <p className="text-sm">Carregando produtos...</p>
+          </div>
+        ) : lista.length === 0 ? (
           <div className="py-10 text-center text-gray-400">
             <Package size={28} className="mx-auto mb-2 opacity-30" />
             <p className="text-sm">Nenhum produto encontrado</p>
           </div>
-        ) : lista.map(p => (
-          <div key={p.id}
-            className="grid grid-cols-[2fr_0.9fr_0.9fr_0.8fr] gap-3 px-5 py-3 border-b border-gray-50 last:border-0 items-center hover:bg-gray-50/50 transition-colors">
-            <span className="text-sm font-semibold text-operis-dark">{p.descricao}</span>
-            <span className="text-center text-sm text-gray-700 font-medium">{p.ciclopadrao}s</span>
-            <span className="text-center text-sm text-gray-700 font-medium">{p.cavidadepadrao}</span>
-            <div className="flex items-center justify-end gap-1">
-              <button onClick={() => abrirEditar(p)}
-                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors" title="Editar">
-                <Edit2 size={13} />
-              </button>
-              <button onClick={() => excluir(p.id)}
-                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors" title="Excluir">
-                <Trash2 size={13} />
-              </button>
+        ) : lista.map(p => {
+          const busy = actionId === p.id;
+          return (
+            <div key={p.id}
+              className="grid grid-cols-[1fr_2fr_0.9fr_0.9fr_0.8fr] gap-3 px-5 py-3 border-b border-gray-50 last:border-0 items-center hover:bg-gray-50/50 transition-colors">
+              <span className="text-xs font-mono text-gray-500">{p.codigo}</span>
+              <span className="text-sm font-semibold text-operis-dark">{p.descricao}</span>
+              <span className="text-center text-sm text-gray-700 font-medium">{p.ciclopadrao}s</span>
+              <span className="text-center text-sm text-gray-700 font-medium">{p.cavidadepadrao}</span>
+              {canEdit && (
+                <div className="flex items-center justify-end gap-1">
+                  <button onClick={() => abrirEditar(p)} disabled={busy}
+                    className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 disabled:opacity-30 transition-colors" title="Editar">
+                    <Edit2 size={13} />
+                  </button>
+                  <button onClick={() => excluir(p.id, p.descricao)} disabled={busy}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 disabled:opacity-30 transition-colors" title="Excluir">
+                    {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <p className="text-xs text-gray-400 text-right">{lista.length} produto{lista.length !== 1 ? 's' : ''}</p>
     </div>
@@ -843,9 +904,9 @@ const APONTAMENTO_VAZIO: Apontamento = {
   op: '', qtdOP: '', qtdAcumulada: '',
 };
 
-function getValidacao(ap: Apontamento | undefined) {
+function getValidacao(ap: Apontamento | undefined, produtos: Produto[]) {
   if (!ap) return null;
-  const prod = MOCK_PRODUTOS.find(p => p.descricao === ap.produto);
+  const prod = produtos.find(p => p.descricao === ap.produto);
   if (!prod || !ap.cicloReal || !ap.cavidadeReal || !ap.status) return null;
 
   const ciclo = Number(ap.cicloReal);
@@ -947,8 +1008,8 @@ function TabApontar() {
   }
 
   const preenchidos  = maquinas.filter(m => isPreenchido(apts[m])).length;
-  const divergentes  = maquinas.filter(m => { const v = getValidacao(apts[m]); return v && !v.ok; }).length;
-  const dentropadrao = maquinas.filter(m => { const v = getValidacao(apts[m]); return v && v.ok; }).length;
+  const divergentes  = maquinas.filter(m => { const v = getValidacao(apts[m], produtosReais); return v && !v.ok; }).length;
+  const dentropadrao = maquinas.filter(m => { const v = getValidacao(apts[m], produtosReais); return v && v.ok; }).length;
   const progPct      = maquinas.length > 0 ? Math.round((preenchidos / maquinas.length) * 100) : 0;
 
   const maquinasFiltradas = useMemo(() => {
@@ -958,8 +1019,8 @@ function TabApontar() {
       list = list.filter((m: string) => m.toLowerCase().includes(q));
     }
     if (filtroMaq === 'pendentes')   list = list.filter((m: string) => !isPreenchido(apts[m]));
-    if (filtroMaq === 'divergentes') list = list.filter((m: string) => { const v = getValidacao(apts[m]); return v && !v.ok; });
-    if (filtroMaq === 'ok')          list = list.filter((m: string) => { const v = getValidacao(apts[m]); return v && v.ok; });
+    if (filtroMaq === 'divergentes') list = list.filter((m: string) => { const v = getValidacao(apts[m], produtosReais); return v && !v.ok; });
+    if (filtroMaq === 'ok')          list = list.filter((m: string) => { const v = getValidacao(apts[m], produtosReais); return v && v.ok; });
     return list;
   }, [buscaMaq, filtroMaq, apts, maquinas]);
 

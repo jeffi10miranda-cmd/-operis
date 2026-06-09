@@ -25,8 +25,16 @@ app.set('trust proxy', 1);
 // ── Segurança ──────────────────────────────────
 app.use(helmet());
 
+const ALLOWED_ORIGINS = (process.env.FRONTEND_URL || 'http://localhost:3002')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3002',
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origem não permitida — ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],

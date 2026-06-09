@@ -183,6 +183,22 @@ export async function testarConexaoPlanilha(sheetId: string) {
   return api.post<{ conectado: boolean; sheetId: string }>('/sheets/testar-conexao', { sheetId }).then((r) => r.data);
 }
 
+export async function fetchProdutos() {
+  return api.get('/produtos').then((r) => r.data);
+}
+
+export async function criarProduto(data: { codigo: string; descricao: string; ciclopadrao: number; cavidadepadrao: number }) {
+  return api.post('/produtos', data).then((r) => r.data);
+}
+
+export async function atualizarProduto(id: string, data: Partial<{ codigo: string; descricao: string; ciclopadrao: number; cavidadepadrao: number }>) {
+  return api.put(`/produtos/${id}`, data).then((r) => r.data);
+}
+
+export async function removerProduto(id: string) {
+  return api.delete(`/produtos/${id}`).then((r) => r.data);
+}
+
 export interface OperisLogEntry {
   id: string;
   modulo: string;
