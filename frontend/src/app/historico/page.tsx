@@ -75,8 +75,9 @@ export default function HistoricoPage() {
   const [data,        setData]        = useState(hoje);
   const [turno,       setTurno]       = useState<Turno>('TODOS');
   const [busca,       setBusca]       = useState('');
+  const [todasOPs,    setTodasOPs]    = useState(false);
 
-  const { data: raw, isLoading } = useHistorico(data, turno);
+  const { data: raw, isLoading } = useHistorico(data, turno, todasOPs);
   const linhas: LinhaHistorico[] = raw ?? [];
 
   function exportarExcel() {
@@ -164,6 +165,19 @@ export default function HistoricoPage() {
               className="input text-sm pl-8 w-full"
             />
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 pt-[14px]">
+          <input
+            type="checkbox"
+            id="chkTodasOPs"
+            checked={todasOPs}
+            onChange={e => setTodasOPs(e.target.checked)}
+            className="rounded border-gray-300 text-operis-dark focus:ring-operis-dark w-4 h-4 cursor-pointer"
+          />
+          <label htmlFor="chkTodasOPs" className="text-xs text-gray-600 font-medium cursor-pointer">
+            Incluir OPs finalizadas
+          </label>
         </div>
 
         <div className="ml-auto flex items-end gap-3">

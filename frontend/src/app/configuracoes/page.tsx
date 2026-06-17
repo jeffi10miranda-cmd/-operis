@@ -8,6 +8,7 @@ import {
   saveConfiguracao,
   testarConexaoPlanilha,
   sincronizarPlanilhas,
+  limparDadosOperacionais,
   fetchUsuarios,
   criarUsuario,
   atualizarRoleUsuario,
@@ -993,6 +994,45 @@ function ClockTemaSection() {
   );
 }
 
+// ─── Seção: Zona de Perigo ───────────────────────────────────────────────────
+function DangerZoneSection() {
+  const [wiping, setWiping] = useState(false);
+
+  const handleWipe = async () => {
+    if (!confirm('ATENÇÃO: Você está prestes a apagar TODOS os snapshots, alertas e rondas. Isso não pode ser desfeito. Deseja continuar?')) return;
+    
+    setWiping(true);
+    try {
+      await limparDadosOperacionais();
+      alert('Dados operacionais removidos com sucesso.');
+      window.location.reload();
+    } catch {
+      alert('Erro ao tentar limpar dados.');
+    } finally {
+      setWiping(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Zona de Perigo" subtitle="Ações destrutivas do sistema" icon={<AlertCircle size={18} className="text-red-500" />}>
+      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+        <h3 className="text-red-800 font-semibold text-sm mb-1">Apagar dados operacionais</h3>
+        <p className="text-red-600 text-xs mb-4">
+          Isso irá remover todos os Snapshots, Alertas, Rondas e Logs. Configurações de planilhas e usuários não serão afetados.
+        </p>
+        <button
+          onClick={handleWipe}
+          disabled={wiping}
+          className="btn bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 h-10 w-full disabled:opacity-50"
+        >
+          {wiping ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
+          {wiping ? 'Apagando...' : 'Apagar Dados Operacionais'}
+        </button>
+      </div>
+    </SectionCard>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ConfiguracoesPage() {
   const router = useRouter();
@@ -1017,6 +1057,7 @@ export default function ConfiguracoesPage() {
       <ClockTemaSection />
       <UsuariosSection currentRole={role} />
       <AlertRulesSection />
+      {role === 'ADMIN' && <DangerZoneSection />}
     </div>
   );
 }

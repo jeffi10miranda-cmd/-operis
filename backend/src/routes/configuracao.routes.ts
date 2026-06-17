@@ -125,3 +125,18 @@ configuracaoRouter.post('/usuarios', authorize('ADMIN'), async (req, res, next) 
     res.status(201).json(user);
   } catch (e) { next(e); }
 });
+
+// DELETE /api/configuracao/limpar-dados
+configuracaoRouter.delete('/limpar-dados', authorize('ADMIN'), async (req, res, next) => {
+  try {
+    // Apaga dados operacionais. A ordem de exclusão deve respeitar chaves estrangeiras se houver, 
+    // mas Prisma lida bem com deletes independentes se não houver FK restrita (Snapshot e Alerta tem FK, então apaga alerta primeiro)
+    await prisma.alerta.deleteMany();
+    await prisma.snapshotTurno.deleteMany();
+    await prisma.rondaItem.deleteMany();
+    await prisma.ronda.deleteMany();
+    await prisma.operisLog.deleteMany();
+    
+    res.json({ ok: true, message: 'Dados operacionais removidos com sucesso.' });
+  } catch (e) { next(e); }
+});

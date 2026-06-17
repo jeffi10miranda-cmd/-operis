@@ -115,6 +115,8 @@ snapshotsRouter.get('/historico', async (req, res, next) => {
     const dataParam  = req.query.data  as string | undefined;
     const turnoRaw   = req.query.turno as string  | undefined;
 
+    const todasOPs   = req.query.todasOPs === 'true';
+
     const TURNOS_VALIDOS: Turno[] = ['PRIMEIRO', 'SEGUNDO', 'TERCEIRO'];
     const turnoParam = turnoRaw && TURNOS_VALIDOS.includes(turnoRaw as Turno)
       ? (turnoRaw as Turno) : undefined;
@@ -128,10 +130,10 @@ snapshotsRouter.get('/historico', async (req, res, next) => {
       orderBy: [{ maquina: 'asc' }, { capturadoEm: 'desc' }],
     });
 
-    // Deduplica por máquina+turno mantendo o mais recente
+    // Deduplica por máquina+turno (ou máquina+turno+OP se todasOPs=true) mantendo o mais recente
     const map = new Map<string, typeof snaps[0]>();
     for (const s of snaps) {
-      const key = `${s.maquina}::${s.turno}`;
+      const key = todasOPs ? `${s.maquina}::${s.turno}::${s.op ?? 'NO_OP'}` : `${s.maquina}::${s.turno}`;
       if (!map.has(key) || s.capturadoEm > map.get(key)!.capturadoEm) map.set(key, s);
     }
 

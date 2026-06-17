@@ -126,9 +126,10 @@ export function useProdutos() {
   return useSWR(hasApiAccess() ? '/produtos' : null, fetcher, SILENT);
 }
 
-export function useHistorico(data: string, turno?: string) {
+export function useHistorico(data: string, turno?: string, todasOPs?: boolean) {
   const params = new URLSearchParams({ data });
   if (turno && turno !== 'TODOS') params.set('turno', turno);
+  if (todasOPs) params.set('todasOPs', 'true');
   return useSWR(
     hasApiAccess() ? `/snapshots/historico?${params}` : null,
     fetcher,
@@ -166,6 +167,10 @@ export async function fetchConfiguracao() {
 
 export async function saveConfiguracao(data: Record<string, string>) {
   return api.put('/configuracao', data).then((r) => r.data);
+}
+
+export async function limparDadosOperacionais() {
+  return api.delete('/configuracao/limpar-dados').then(r => r.data);
 }
 
 export async function fetchUsuarios() {
