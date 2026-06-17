@@ -133,7 +133,7 @@ configuracaoRouter.delete('/limpar-dados', authorize('ADMIN'), async (req, res, 
     // mas Prisma lida bem com deletes independentes se não houver FK restrita (Snapshot e Alerta tem FK, então apaga alerta primeiro)
     await prisma.alerta.deleteMany();
     await prisma.snapshotTurno.deleteMany();
-    await prisma.rondaItem.deleteMany();
+    await prisma.rondaTurno.deleteMany();
     await prisma.ronda.deleteMany();
     await prisma.operisLog.deleteMany();
     
