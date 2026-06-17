@@ -8,6 +8,22 @@ import { Turno, StatusOperacional } from '@prisma/client';
 export const snapshotsRouter = Router();
 snapshotsRouter.use(authenticate);
 
+// GET /api/snapshots/ultima-data
+// Retorna a data do snapshot mais recente (útil para fallback na Central)
+snapshotsRouter.get('/ultima-data', async (_req, res, next) => {
+  try {
+    const ultimo = await prisma.snapshotTurno.findFirst({
+      orderBy: { data: 'desc' },
+      select: { data: true }
+    });
+    if (ultimo) {
+      res.json({ data: ultimo.data.toISOString().slice(0, 10) });
+    } else {
+      res.json({ data: new Date().toISOString().slice(0, 10) });
+    }
+  } catch (e) { next(e); }
+});
+
 // GET /api/snapshots/hoje?turno=X&data=YYYY-MM-DD
 // Retorna snapshots do dia (padrão: hoje) filtrados por turno opcional
 snapshotsRouter.get('/hoje', async (req, res, next) => {

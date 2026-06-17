@@ -64,8 +64,9 @@ const SILENT: SWRConfiguration = { onError: () => {} };
 
 // ── Hooks de dados ─────────────────────────────
 
-export function useKPIs() {
-  return useSWR(hasApiAccess() ? '/snapshots/kpis' : null, fetcher, { ...SILENT, refreshInterval: 30000 });
+export function useKPIs(data?: string) {
+  const url = data ? `/snapshots/kpis?data=${data}` : '/snapshots/kpis';
+  return useSWR(hasApiAccess() ? url : null, fetcher, { ...SILENT, refreshInterval: 30000 });
 }
 
 export function useSnapshotsHoje(turno?: string, data?: string) {
@@ -80,6 +81,10 @@ export function useSnapshotsHoje(turno?: string, data?: string) {
     revalidateOnFocus: true,
     revalidateOnMount: true,
   });
+}
+
+export function useUltimaData() {
+  return useSWR(hasApiAccess() ? '/snapshots/ultima-data' : null, fetcher, SILENT);
 }
 
 export function useSnapshotsUltimo() {

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { MachineCard } from '@/components/machine-card';
 import { CentralSkeleton } from '@/components/skeleton';
-import { useKPIs, useSnapshotsHoje, useAlertas, fetchConfiguracao } from '@/lib/api';
+import { useKPIs, useSnapshotsHoje, useAlertas, fetchConfiguracao, useUltimaData } from '@/lib/api';
 import type { ClockTema } from '@/app/configuracoes/page';
 import { useTurno } from '@/contexts/turno-context';
 import { useSocket } from '@/hooks/useSocket';
@@ -206,12 +206,20 @@ export default function CentralPage() {
   const { turnoAtual: turnoView } = useTurno();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const hoje = new Date().toISOString().slice(0, 10);
+  const { data: ultimaDataObj } = useUltimaData();
   const [dataFiltro, setDataFiltro] = useState(hoje);
+  const [isAutoDate, setIsAutoDate] = useState(true);
+
+  useEffect(() => {
+    if (isAutoDate && ultimaDataObj?.data) {
+      setDataFiltro(ultimaDataObj.data);
+    }
+  }, [ultimaDataObj, isAutoDate]);
 
   const [searchQuery, setSearchQuery]   = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS');
 
-  const { data: kpisData, isLoading: kpiLoading, error: kpiError, mutate: reloadKpis } = useKPIs();
+  const { data: kpisData, isLoading: kpiLoading, error: kpiError, mutate: reloadKpis } = useKPIs(dataFiltro);
   const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO', dataFiltro);
   const { data: t2Raw, mutate: reloadT2 } = useSnapshotsHoje('SEGUNDO',  dataFiltro);
   const { data: t3Raw, mutate: reloadT3 } = useSnapshotsHoje('TERCEIRO', dataFiltro);
@@ -396,12 +404,12 @@ export default function CentralPage() {
                       type="date"
                       value={dataFiltro}
                       max={hoje}
-                      onChange={e => setDataFiltro(e.target.value)}
+                      onChange={e => { setDataFiltro(e.target.value); setIsAutoDate(false); }}
                       className="input text-xs py-1 px-2 w-34 h-7"
                     />
                     {!isHoje && (
                       <button
-                        onClick={() => setDataFiltro(hoje)}
+                        onClick={() => { setDataFiltro(hoje); setIsAutoDate(false); }}
                         className="px-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors h-7"
                       >
                         Hoje
