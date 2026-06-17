@@ -7,6 +7,7 @@ import {
   fetchConfiguracao,
   saveConfiguracao,
   testarConexaoPlanilha,
+  sincronizarPlanilhas,
   fetchUsuarios,
   criarUsuario,
   atualizarRoleUsuario,
@@ -123,6 +124,7 @@ function SheetsSection() {
   const [previews, setPreviews]       = useState<Record<string, SheetPreview | null>>({});
   const [testError, setTestError]     = useState<Record<string, string>>({});
   const [loading, setLoading]         = useState(false);
+  const [syncing, setSyncing]         = useState(false);
   const [saved, setSaved]             = useState(false);
   const [backendOffline, setBackendOffline] = useState(false);
 
@@ -188,6 +190,7 @@ function SheetsSection() {
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+      try { await sincronizarPlanilhas(); } catch { /* silent */ }
     } catch { /* silent */ } finally {
       setLoading(false);
     }
@@ -314,7 +317,20 @@ function SheetsSection() {
           </div>
         </Field>
 
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={async () => {
+              setSyncing(true);
+              try { await sincronizarPlanilhas(); alert('Sincronizado com sucesso!'); }
+              catch { alert('Erro ao sincronizar.'); }
+              finally { setSyncing(false); }
+            }}
+            disabled={syncing || loading}
+            className="btn bg-operis-dark/10 hover:bg-operis-dark/20 text-operis-dark font-semibold text-sm h-10 px-4 disabled:opacity-50"
+          >
+            {syncing ? <Loader2 size={16} className="animate-spin" /> : 'Sincronizar Agora'}
+          </button>
           <SaveButton loading={loading} saved={saved} />
         </div>
       </form>
