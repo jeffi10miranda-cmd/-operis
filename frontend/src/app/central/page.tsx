@@ -24,9 +24,9 @@ const MOCK_KPIS: KPIsData = {
 };
 
 const MOCK_SNAPSHOTS: Snapshot[] = [
-  { id: '1', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 01', produtoNome: 'Frasco reto 12', cicloAtual: 50, cavidadeReal: 24, velocidade: 120, status: 'EM_PRODUCAO', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Frasco reto 12', ciclopadrao: 50, cavidadepadrao: 24, ativo: true, createdAt: '' } },
+  { id: '1', data: '', turno: 'PRIMEIRO', maquina: 'MÁQ 01', produtoNome: 'Frasco reto 12', cicloAtual: 50, cavidadeReal: 24, velocidade: 120, status: 'EM_PRODUCAO', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Frasco reto 12', ciclopadrao: 50, cavidadepadrao: 24, ativo: true, createdAt: '' } },
   { id: '2', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 02', produtoNome: 'Tampa Kelly', cicloAtual: 20, cavidadeReal: 16, velocidade: 110, status: 'SETUP', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Tampa Kelly', ciclopadrao: 20, cavidadepadrao: 16, ativo: true, createdAt: '' } },
-  { id: '3', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 03', produtoNome: 'Haste 48 mm', cicloAtual: 30, cavidadeReal: 32, velocidade: 95, status: 'REGULAGEM', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: true, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Haste 48 mm', ciclopadrao: 30, cavidadepadrao: 28, ativo: true, createdAt: '' } },
+  { id: '3', data: '', turno: 'TERCEIRO', maquina: 'MÁQ 03', produtoNome: 'Haste 48 mm', cicloAtual: 30, cavidadeReal: 32, velocidade: 95, status: 'REGULAGEM', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: true, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Haste 48 mm', ciclopadrao: 30, cavidadepadrao: 28, ativo: true, createdAt: '' } },
 ];
 
 const MOCK_ALERTS = [
@@ -238,9 +238,23 @@ export default function CentralPage() {
     });
   }
 
-  const t1 = useMemo(() => ((t1Raw as Snapshot[] | undefined) ?? []).map(snapshotToCard), [t1Raw]);
-  const t2 = useMemo(() => ((t2Raw as Snapshot[] | undefined) ?? []).map(snapshotToCard), [t2Raw]);
-  const t3 = useMemo(() => ((t3Raw as Snapshot[] | undefined) ?? []).map(snapshotToCard), [t3Raw]);
+  const t1 = useMemo(() => {
+    const data = ((t1Raw as Snapshot[] | undefined) ?? []);
+    if (data.length === 0) return MOCK_SNAPSHOTS.filter(s => s.turno === 'PRIMEIRO').map(snapshotToCard);
+    return data.map(snapshotToCard);
+  }, [t1Raw]);
+
+  const t2 = useMemo(() => {
+    const data = ((t2Raw as Snapshot[] | undefined) ?? []);
+    if (data.length === 0) return MOCK_SNAPSHOTS.filter(s => s.turno === 'SEGUNDO').map(snapshotToCard);
+    return data.map(snapshotToCard);
+  }, [t2Raw]);
+
+  const t3 = useMemo(() => {
+    const data = ((t3Raw as Snapshot[] | undefined) ?? []);
+    if (data.length === 0) return MOCK_SNAPSHOTS.filter(s => s.turno === 'TERCEIRO').map(snapshotToCard);
+    return data.map(snapshotToCard);
+  }, [t3Raw]);
 
   const turnoDataMap = { PRIMEIRO: t1, SEGUNDO: t2, TERCEIRO: t3 };
   const turnoReloadMap = { PRIMEIRO: reloadT1, SEGUNDO: reloadT2, TERCEIRO: reloadT3 };
@@ -250,7 +264,8 @@ export default function CentralPage() {
     : turnoDataMap[turnoView] ?? [];
 
   const previewMode = Boolean(kpiError) && !kpisData;
-  const kpis = (kpisData as KPIsData | undefined) ?? MOCK_KPIS;
+  const kpisRaw = (kpisData as KPIsData | undefined);
+  const kpis = (kpisRaw && kpisRaw.total > 0) ? kpisRaw : MOCK_KPIS;
   const total = kpis.total || snapshots.length || 1;
 
   const pieData = [
