@@ -4,6 +4,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { z } from 'zod';
+import { google } from 'googleapis';
 import { prisma } from '../config/database';
 import { authenticate } from '../middlewares/auth.middleware';
 import { AppError } from '../middlewares/errorHandler';
@@ -142,4 +143,71 @@ authRouter.patch('/change-password', authenticate, async (req: Request, res: Res
 authRouter.post('/logout', authenticate, async (req: Request, res: Response) => {
   // Com JWT stateless, apenas confirma logout
   res.json({ message: 'Logout realizado com sucesso' });
+});
+
+// ── GET /api/auth/google/url ──────────────────
+authRouter.get('/google/url', (req: Request, res: Response) => {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${process.env.FRONTEND_URL}/login`
+  );
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['email', 'profile'],
+  });
+  res.json({ url });
+});
+
+// ── POST /api/auth/google/callback ─────────────
+authRouter.post('/google/callback', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code } = z.object({ code: z.string() }).parse(req.body);
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `${process.env.FRONTEND_URL}/login`
+    );
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const { data } = await oauth2.userinfo.get();
+    
+    if (!data.email) throw new AppError('Email não fornecido pelo Google', 400);
+
+    let user = await prisma.user.findUnique({ where: { email: data.email } });
+    
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          name: data.name || 'Usuário Google',
+          email: data.email,
+          googleId: data.id,
+          role: 'OPERADOR',
+          active: true,
+        }
+      });
+    } else if (!user.googleId && data.id) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { googleId: data.id }
+      });
+    }
+
+    if (!user.active) throw new AppError('Conta desativada', 401);
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET as Secret,
+      { expiresIn: (process.env.JWT_EXPIRES_IN || '8h') as SignOptions['expiresIn'] }
+    );
+
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    });
+  } catch (err) {
+    next(err);
+  }
 });

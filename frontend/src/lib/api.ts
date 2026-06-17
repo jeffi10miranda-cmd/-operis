@@ -287,3 +287,18 @@ export function logout() {
   disablePreviewMode();
   window.location.href = '/login';
 }
+
+export async function getGoogleLoginUrl() {
+  return api.get<{url: string}>('/auth/google/url').then(r => r.data.url);
+}
+
+export async function loginWithGoogleCallback(code: string) {
+  const { data } = await api.post('/auth/google/callback', { code });
+  localStorage.setItem('operis_token', data.token);
+  disablePreviewMode();
+  return data;
+}
+
+export async function testarConexaoEmail(to: string) {
+  return api.post('/configuracao/teste-email', { to }).then(r => r.data);
+}

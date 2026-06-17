@@ -38,6 +38,22 @@ configuracaoRouter.put('/', authorize('ADMIN', 'SUPERVISOR'), async (req, res, n
   } catch (e) { next(e); }
 });
 
+// POST /api/configuracao/teste-email
+configuracaoRouter.post('/teste-email', authorize('ADMIN', 'SUPERVISOR'), async (req, res, next) => {
+  try {
+    const { to } = z.object({ to: z.string().email() }).parse(req.body);
+    const { sendEmail } = await import('../services/email.service');
+    
+    await sendEmail({
+      to,
+      subject: 'OPERIS - Teste de Integração de E-mail',
+      html: '<h3>Teste bem-sucedido!</h3><p>A configuração SMTP do sistema Operis está funcionando perfeitamente.</p>',
+    });
+
+    res.json({ ok: true, message: 'E-mail de teste enviado com sucesso!' });
+  } catch (e) { next(e); }
+});
+
 // GET /api/configuracao/usuarios (lista usuários)
 configuracaoRouter.get('/usuarios', authorize('ADMIN', 'SUPERVISOR'), async (_req, res, next) => {
   try {

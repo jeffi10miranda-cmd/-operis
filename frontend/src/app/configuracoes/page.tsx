@@ -17,12 +17,13 @@ import {
   criarProduto,
   atualizarProduto,
   removerProduto,
+  testarConexaoEmail,
 } from '@/lib/api';
 import type { User, Produto } from '@/types/operis';
 import {
   Sheet, Shield, Bell, Users, Sliders, CheckCircle,
   AlertCircle, Loader2, Eye, EyeOff, Plus, Settings2, Palette,
-  Trash2, ChevronUp, ChevronDown, Package, Pencil, X,
+  Trash2, ChevronUp, ChevronDown, Package, Pencil, X, Mail,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1033,6 +1034,101 @@ function DangerZoneSection() {
   );
 }
 
+// ─── Seção: E-mail (SMTP) ──────────────────────────────────────────────────
+function EmailSection() {
+  const [configs, setConfigs] = useState({ SMTP_HOST: '', SMTP_PORT: '', SMTP_USER: '', SMTP_PASS: '', SMTP_FROM: '' });
+  const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+
+  useEffect(() => {
+    fetchConfiguracao()
+      .then((cfg) => {
+        setConfigs({
+          SMTP_HOST: cfg.SMTP_HOST || '',
+          SMTP_PORT: cfg.SMTP_PORT || '587',
+          SMTP_USER: cfg.SMTP_USER || '',
+          SMTP_PASS: cfg.SMTP_PASS || '',
+          SMTP_FROM: cfg.SMTP_FROM || '',
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setConfigs({ ...configs, [e.target.name]: e.target.value });
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await saveConfiguracao(configs);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      alert('Erro ao salvar as configurações de E-mail.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTest = async () => {
+    if (!testEmail) { alert('Digite um e-mail para envio do teste.'); return; }
+    setTestLoading(true);
+    try {
+      await testarConexaoEmail(testEmail);
+      alert('E-mail de teste enviado com sucesso! Verifique a caixa de entrada.');
+    } catch {
+      alert('Erro ao enviar e-mail. Verifique se as configurações SMTP estão corretas e se você as salvou primeiro.');
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Configurações de E-mail (SMTP)" subtitle="Conecte seu Gmail ou Outlook para envio de alertas" icon={<Mail size={18} />}>
+      <form onSubmit={handleSave} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Host SMTP" hint="Ex: smtp.gmail.com ou smtp.office365.com">
+            <input name="SMTP_HOST" value={configs.SMTP_HOST} onChange={handleChange} className="input" placeholder="smtp.gmail.com" />
+          </Field>
+          <Field label="Porta" hint="587 (TLS) ou 465 (SSL)">
+            <input name="SMTP_PORT" value={configs.SMTP_PORT} onChange={handleChange} className="input" placeholder="587" />
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="E-mail / Usuário" hint="O e-mail usado para login">
+            <input name="SMTP_USER" value={configs.SMTP_USER} onChange={handleChange} className="input" placeholder="seu-email@gmail.com" />
+          </Field>
+          <Field label="Senha" hint="Senha do e-mail (ou Senha de Aplicativo no Gmail)">
+            <input name="SMTP_PASS" value={configs.SMTP_PASS} onChange={handleChange} type="password" className="input" placeholder="••••••••" />
+          </Field>
+        </div>
+        <Field label="Remetente Personalizado (Opcional)" hint="Nome e e-mail que aparecerá para quem receber">
+          <input name="SMTP_FROM" value={configs.SMTP_FROM} onChange={handleChange} className="input" placeholder="Operis Alertas <alertas@empresa.com>" />
+        </Field>
+
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 items-end">
+          <div className="flex-1 w-full">
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">E-mail para teste</label>
+            <div className="flex gap-2">
+              <input value={testEmail} onChange={e => setTestEmail(e.target.value)} type="email" className="input text-sm" placeholder="Seu e-mail..." />
+              <button type="button" onClick={handleTest} disabled={testLoading} className="btn-secondary h-10 px-4 flex-shrink-0 text-sm">
+                {testLoading ? <Loader2 size={14} className="animate-spin" /> : 'Testar Conexão'}
+              </button>
+            </div>
+          </div>
+          <div className="flex-shrink-0">
+            <SaveButton loading={loading} saved={saved} />
+          </div>
+        </div>
+      </form>
+    </SectionCard>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ConfiguracoesPage() {
   const router = useRouter();
@@ -1053,6 +1149,7 @@ export default function ConfiguracoesPage() {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       <SheetsSection />
+      <EmailSection />
       <LimitesSection />
       <ClockTemaSection />
       <UsuariosSection currentRole={role} />
