@@ -41,19 +41,19 @@
   }
 
   .kpi-corporate {
-    @apply card px-5 py-4 flex flex-col gap-1 min-h-[88px] justify-center;
+    @apply card px-5 py-4 flex flex-col gap-1 min-h-[100px] justify-center;
   }
 
   .kpi-corporate__label {
-    @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500;
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500;
   }
 
   .kpi-corporate__value {
-    @apply text-3xl font-light text-[var(--operis-petroleum)] tabular-nums leading-none;
+    @apply text-4xl font-light text-[var(--operis-petroleum)] tabular-nums leading-none;
   }
 
   .kpi-corporate__meta {
-    @apply text-[11px] text-slate-400 font-medium;
+    @apply text-[11px] text-slate-400 font-medium mt-1;
   }
 
   .input {

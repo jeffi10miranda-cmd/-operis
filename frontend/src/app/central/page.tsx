@@ -312,16 +312,16 @@ export default function CentralPage() {
       {/* KPIs — 7 de status + 1 card OPs (col-span-2) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-9 gap-2 sm:gap-3">
         {kpiCards.map((k) => (
-          <div key={k.label} className="kpi-corporate !px-3 !py-3 sm:!px-5 sm:!py-4">
-            <p className="kpi-corporate__label text-[9px] sm:text-[10px]">{k.label}</p>
-            <p className="kpi-corporate__value !text-2xl sm:!text-3xl">{k.value}</p>
+          <div key={k.label} className="kpi-corporate">
+            <p className="kpi-corporate__label">{k.label}</p>
+            <p className="kpi-corporate__value">{k.value}</p>
             <p className="kpi-corporate__meta hidden sm:block">{k.meta}</p>
           </div>
         ))}
 
         {/* Card OPs do Dia — ocupa 2 colunas */}
-        <div className="kpi-corporate !px-4 !py-3 col-span-2 xl:col-span-2">
-          <p className="kpi-corporate__label text-[9px] sm:text-[10px] mb-2">OPs do Dia</p>
+        <div className="kpi-corporate col-span-2 xl:col-span-2">
+          <p className="kpi-corporate__label mb-2">OPs do Dia</p>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] text-gray-400">Meta</p>
