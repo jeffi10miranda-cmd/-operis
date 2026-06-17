@@ -37,6 +37,10 @@ authRouter.post('/login', async (req: Request, res: Response, next: NextFunction
       throw new AppError('Credenciais inválidas', 401);
     }
 
+    if (!user.password) {
+      throw new AppError('Faça login utilizando a sua conta do Google.', 401);
+    }
+
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       throw new AppError('Credenciais inválidas', 401);
@@ -129,6 +133,10 @@ authRouter.patch('/change-password', authenticate, async (req: Request, res: Res
 
     const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
     if (!user) throw new AppError('Usuário não encontrado', 404);
+
+    if (!user.password) {
+      throw new AppError('Usuários cadastrados via Google não possuem senha para alterar.', 400);
+    }
 
     const match = await bcrypt.compare(senhaAtual, user.password);
     if (!match) throw new AppError('Senha atual incorreta', 400);
