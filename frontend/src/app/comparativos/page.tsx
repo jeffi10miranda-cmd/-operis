@@ -403,16 +403,16 @@ export default function ComparativosPage() {
                   </div>
                 </div>
                 <div className="space-y-1 mt-2">
-                  {pieData.map((d) => (
+                  {pieData.map((d: { name: string; value: number; color: string }) => (
                     <div key={d.name} className="flex items-center justify-between text-[10px] text-gray-500">
                       <span className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }}/>
                         {d.name}
                       </span>
-                    <span className="font-bold">{d.value}</span>
-                  </div>
-                ))}
-              </div>
+                      <span className="font-semibold text-operis-dark">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
             </div>
           </div>
         </div>
