@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useComparativoDias, useComparativoTurnos } from '@/lib/api';
+import { useComparativoDias, useComparativoTurnos, useComparativoKpis, useComparativoGraficos } from '@/lib/api';
 import {
   TrendingUp, TrendingDown, Minus, AlertTriangle, ArrowRight,
   BarChart3, Filter, ChevronLeft, ChevronRight,
@@ -12,109 +12,22 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const kpiMetrics = [
-  { label: 'Ciclo médio',       value: '23,4s', delta: '+2,1s', deltaPct: '+9,9%', up: true,  sparkColor: '#ef4444' },
-  { label: 'Produção total',    value: '18.450 un', delta: '+1.480', deltaPct: '+8,7%', up: true, sparkColor: '#22c55e' },
-  { label: 'Setup / Ajustes',   value: '11h 23m', delta: '+1h 12m', deltaPct: '+11,2%', up: true, sparkColor: '#f59e0b' },
-  { label: 'Paradas',           value: '5h 45m', delta: '-0h 30m', deltaPct: '-8,0%', up: false, sparkColor: '#22c55e' },
-  { label: 'Disponibilidade',   value: '86,3%', delta: '-2,4%', deltaPct: '', up: false, sparkColor: '#ef4444' },
-  { label: 'Eficiência média',  value: '76,8%', delta: '+3,6%', deltaPct: '', up: true,  sparkColor: '#22c55e' },
-];
-
-const sparkData = Array.from({ length: 12 }, (_, i) => ({ v: 40 + Math.sin(i * 0.8) * 12 + Math.random() * 6 }));
-
-// Produtos e padrões para gerar 30 máquinas mock
-const MOCK_LINHAS = [
-  { produto:'Frasco reto 12',       ciclo:50, cav:24, status:'danger',  label:'Ciclo aumentou'   },
-  { produto:'Tampa Kelly - Preto',  ciclo:20, cav:16, status:'ok',      label:'Estável'          },
-  { produto:'Haste 48 mm',          ciclo:30, cav:32, status:'warning', label:'Cavidade alterada'},
-  { produto:'Frasco reto 05',       ciclo:24, cav:0,  status:'stopped', label:'Máquina parada'   },
-  { produto:'Peneira - Rosa',       ciclo:22, cav:16, status:'danger',  label:'Ciclo aumentou'   },
-  { produto:'POTE 500g',            ciclo:24, cav:16, status:'ok',      label:'Estável'          },
-  { produto:'TAMPA 38mm',           ciclo:24, cav:16, status:'warning', label:'Ciclo aumentou'   },
-  { produto:'Garrafa PET',          ciclo:20, cav:32, status:'danger',  label:'Queda produção'   },
-  { produto:'Haste 55mm - Preto',   ciclo:30, cav:32, status:'ok',      label:'Estável'          },
-  { produto:'Tampa Novo Toque',     ciclo:23, cav:32, status:'ok',      label:'Estável'          },
-  { produto:'Frasco Reto 05 Mag.',  ciclo:55, cav:24, status:'warning', label:'Ciclo aumentou'   },
-  { produto:'Corpo Stick XL Bege',  ciclo:25, cav:16, status:'ok',      label:'Estável'          },
-  { produto:'Tampa Emilly - Rosa',  ciclo:20, cav:8,  status:'warning', label:'Cavidade baixa'   },
-  { produto:'Trava Peneira C/R D',  ciclo:20, cav:16, status:'ok',      label:'Estável'          },
-  { produto:'Caneca Stick XL',      ciclo:20, cav:32, status:'danger',  label:'Ciclo aumentou'   },
-  { produto:'Haste 48mm Redonda',   ciclo:30, cav:128,status:'ok',      label:'Estável'          },
-  { produto:'Frasco reto 03',       ciclo:55, cav:24, status:'ok',      label:'Estável'          },
-  { produto:'Frasco Reto 05 Mag',   ciclo:55, cav:24, status:'ok',      label:'Estável'          },
-  { produto:'Frasco 05 Abaulado',   ciclo:50, cav:16, status:'ok',      label:'Estável'          },
-  { produto:'Haste 48 mm',          ciclo:30, cav:32, status:'ok',      label:'Estável'          },
-  { produto:'Pote 500ml',           ciclo:50, cav:16, status:'warning', label:'Queda produção'   },
-  { produto:'Frasco reto 10 6ML',   ciclo:25, cav:16, status:'ok',      label:'Estável'          },
-  { produto:'Tampa Verónica Preto', ciclo:34, cav:32, status:'warning', label:'Ciclo aumentou'   },
-  { produto:'Haste 67mm c/adapt.',  ciclo:35, cav:32, status:'ok',      label:'Estável'          },
-  { produto:'Batoque BL 03 Preto',  ciclo:30, cav:128,status:'ok',      label:'Estável'          },
-  { produto:'Reinício',             ciclo:18, cav:16, status:'stopped', label:'Máquina parada'   },
-  { produto:'Tampa Impala Branco',  ciclo:16, cav:24, status:'ok',      label:'Estável'          },
-  { produto:'Tampa Amanda Salmão',  ciclo:14, cav:32, status:'ok',      label:'Estável'          },
-  { produto:'Tampa Impala Branco',  ciclo:16, cav:24, status:'warning', label:'Ciclo aumentou'   },
-  { produto:'Tampa Stick XL Mar.',  ciclo:30, cav:32, status:'ok',      label:'Estável'          },
-];
-
+// Helpers de formatação
 function deltaStr(ant: number, at: number) {
   if (ant === 0 && at === 0) return '-';
   const pct = ant > 0 ? ((at - ant) / ant * 100).toFixed(1).replace('.', ',') : '0';
   return `${at > ant ? '+' : ''}${pct}%`;
 }
 
-const mainTableData = MOCK_LINHAS.map((l, i) => {
-  const num   = String(i + 1).padStart(2, '0');
-  const dCiclo = l.status === 'stopped' ? 0 : Math.round(l.ciclo * (1 + (i % 3 === 0 ? 0.1 : i % 3 === 1 ? -0.05 : 0)));
-  const prodA  = l.status === 'stopped' ? 0 : 1500 + (i * 73) % 1200;
-  const prodB  = l.status === 'stopped' ? 0 : Math.round(prodA * (1 + (i % 5 === 0 ? 0.09 : i % 5 === 1 ? 0.03 : i % 5 === 2 ? -0.08 : i % 5 === 3 ? 0.06 : -0.15)));
-  return {
-    maquina:    `MÁQ ${num}`,
-    produto:    l.produto,
-    cicloAnt:   `${l.ciclo}s`,
-    cicloAt:    `${dCiclo}s`,
-    deltaCiclo: dCiclo !== l.ciclo ? `+${dCiclo - l.ciclo}s` : '-',
-    cavAnt:     l.cav > 0 ? l.cav : '-',
-    cavAt:      l.cav > 0 ? l.cav : '-',
-    deltaCav:   '-',
-    prodAnt:    prodA,
-    prodAt:     prodB,
-    deltaProd:  l.status === 'stopped' ? '-' : deltaStr(prodA, prodB),
-    status:     l.label,
-    statusType: l.status,
-  };
-});
+function formatMinutos(min: number) {
+  const h = Math.floor(min / 60);
+  const m = Math.floor(min % 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
 
-const barData = [
-  { turno:'1º Turno', anterior:5200, atual:4800 },
-  { turno:'2º Turno', anterior:6100, atual:7200 },
-  { turno:'3º Turno', anterior:5800, atual:6450 },
-];
+const sparkData = Array.from({ length: 12 }, (_, i) => ({ v: 40 + Math.sin(i * 0.8) * 12 + Math.random() * 6 })); // Mantemos apenas o spark genérico para visual
 
-const lineData = [
-  { t:'19/05 00:00', anterior:20, atual:22 },
-  { t:'19/05 06:00', anterior:22, atual:24 },
-  { t:'19/05 12:00', anterior:21, atual:26 },
-  { t:'19/05 18:00', anterior:23, atual:25 },
-  { t:'20/05 00:00', anterior:22, atual:27 },
-];
-
-const pieData = [
-  { name:'Em produção',  value:18, color:'#22c55e' },
-  { name:'Setup/Ajustes',value:5,  color:'#f59e0b' },
-  { name:'Regulagem',    value:3,  color:'#a855f7' },
-  { name:'Aguardando',   value:4,  color:'#f97316' },
-  { name:'Paradas',      value:3,  color:'#ef4444' },
-  { name:'Inativas',     value:2,  color:'#94a3b8' },
-];
-
-const variacoes = [
-  { label:'Ciclo médio aumentou',      sub:'+2,1s em relação ao período anterior', delta:'+9,9%', up:true,  color:'bg-red-500' },
-  { label:'Produção total aumentou',   sub:'+1.480 unidades produzidas',           delta:'+8,7%', up:true,  color:'bg-green-500' },
-  { label:'Setup / Ajustes aumentou',  sub:'+1h 12m em relação ao período anterior',delta:'+11,2%',up:true, color:'bg-amber-500' },
-  { label:'Paradas reduziram',         sub:'-0h 30m em relação ao período anterior',delta:'-8,0%', up:false, color:'bg-green-500' },
-];
 
 const statusConfig: Record<string, { label: string; cls: string }> = {
   ok:      { label:'Estável',          cls:'bg-green-100 text-green-700' },
@@ -172,16 +85,79 @@ export default function ComparativosPage() {
   const { data: turnosData, isLoading: turnosLoading, error: turnosError } = useComparativoTurnos(
     isTurnos ? periodoB : undefined,
   );
+  const { data: kpiData } = useComparativoKpis(isDias ? periodoA : undefined, isDias ? periodoB : undefined);
+  const { data: graficosData } = useComparativoGraficos(isDias ? periodoA : undefined, isDias ? periodoB : undefined);
 
   const tableRows = useMemo(() => {
     if (isDias && Array.isArray(diasData) && diasData.length > 0) {
       return (diasData as ComparativoApiRow[]).map(mapComparativoRow);
     }
-    return mainTableData;
+    return [];
   }, [isDias, diasData]);
+
+  const kpiMetrics = useMemo(() => {
+    const atual = (kpiData as any)?.atual || {};
+    const anterior = (kpiData as any)?.anterior || {};
+    
+    return [
+      { 
+        label: 'Ciclo médio', 
+        value: `${atual?.cicloMedio?.toFixed(1) || '0'}s`, 
+        delta: anterior?.cicloMedio ? `${(atual.cicloMedio - anterior.cicloMedio).toFixed(1)}s` : '-', 
+        deltaPct: deltaStr(anterior?.cicloMedio || 0, atual?.cicloMedio || 0), 
+        up: atual?.cicloMedio > anterior?.cicloMedio,  
+        sparkColor: '#ef4444' 
+      },
+      { 
+        label: 'Produção total', 
+        value: `${atual?.producaoTotal?.toLocaleString('pt-BR') || '0'} un`, 
+        delta: anterior?.producaoTotal ? `${(atual.producaoTotal - anterior.producaoTotal).toLocaleString('pt-BR')}` : '-', 
+        deltaPct: deltaStr(anterior?.producaoTotal || 0, atual?.producaoTotal || 0), 
+        up: atual?.producaoTotal >= anterior?.producaoTotal, 
+        sparkColor: '#22c55e' 
+      },
+      { 
+        label: 'Setup / Ajustes', 
+        value: formatMinutos(atual?.setupMinutos || 0), 
+        delta: anterior?.setupMinutos ? formatMinutos(Math.abs(atual.setupMinutos - anterior.setupMinutos)) : '-', 
+        deltaPct: deltaStr(anterior?.setupMinutos || 0, atual?.setupMinutos || 0), 
+        up: atual?.setupMinutos > anterior?.setupMinutos, 
+        sparkColor: '#f59e0b' 
+      },
+      { 
+        label: 'Paradas', 
+        value: formatMinutos(atual?.paradasMinutos || 0), 
+        delta: anterior?.paradasMinutos ? formatMinutos(Math.abs(atual.paradasMinutos - anterior.paradasMinutos)) : '-', 
+        deltaPct: deltaStr(anterior?.paradasMinutos || 0, atual?.paradasMinutos || 0), 
+        up: atual?.paradasMinutos > anterior?.paradasMinutos, 
+        sparkColor: '#ef4444' 
+      },
+      { 
+        label: 'Disponibilidade', 
+        value: `${atual?.disponibilidadePct?.toFixed(1) || '0'}%`, 
+        delta: anterior?.disponibilidadePct ? `${(atual.disponibilidadePct - anterior.disponibilidadePct).toFixed(1)}%` : '-', 
+        deltaPct: '', 
+        up: atual?.disponibilidadePct >= anterior?.disponibilidadePct, 
+        sparkColor: '#22c55e' 
+      },
+      { 
+        label: 'Eficiência média', 
+        value: `${atual?.eficienciaPct?.toFixed(1) || '0'}%`, 
+        delta: anterior?.eficienciaPct ? `${(atual.eficienciaPct - anterior.eficienciaPct).toFixed(1)}%` : '-', 
+        deltaPct: '', 
+        up: atual?.eficienciaPct >= anterior?.eficienciaPct,  
+        sparkColor: '#22c55e' 
+      },
+    ];
+  }, [kpiData]);
 
   // Resetar página quando os dados ou tipo mudam
   useEffect(() => { setPage(1); }, [isDias, diasData, tipoAnalise]);
+
+  const barData = (graficosData as any)?.barData || [];
+  const pieData = (graficosData as any)?.pieData || [];
+  const lineData: any[] = [];
+  const variacoes: any[] = [];
 
   const apiLoading = (isDias && diasLoading) || (isTurnos && turnosLoading);
   const apiError = diasError || turnosError;
@@ -433,66 +409,66 @@ export default function ComparativosPage() {
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }}/>
                         {d.name}
                       </span>
-                      <span className="font-bold">{d.value} ({Math.round(d.value/30*100)}%)</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right panel */}
-          <div className="space-y-4">
-            {/* Evolução ciclo */}
-            <div className="card p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold text-operis-dark">Evolução do ciclo médio</p>
-                <select className="input text-[10px] w-32 py-1 min-h-0 h-7">
-                  <option>Agrupado por: Hora</option>
-                  <option>Agrupado por: Dia</option>
-                </select>
-              </div>
-              <div className="flex gap-4 mb-2 text-[10px] text-gray-400">
-                <span className="flex items-center gap-1"><span className="w-4 h-px border-b-2 border-dashed border-slate-300 inline-block"/>Período anterior</span>
-                <span className="flex items-center gap-1"><span className="w-4 h-px bg-operis-dark inline-block"/>Período atual</span>
-              </div>
-              <ResponsiveContainer width="100%" height={160}>
-                <LineChart data={lineData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                  <XAxis dataKey="t" tick={{ fontSize: 8 }} stroke="#ccc"/>
-                  <YAxis tick={{ fontSize: 8 }} stroke="#ccc"/>
-                  <Tooltip contentStyle={{ fontSize:10, borderRadius:8 }}/>
-                  <Line type="monotone" dataKey="anterior" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 2"/>
-                  <Line type="monotone" dataKey="atual"    stroke="#0f3b52" strokeWidth={2}   dot={false}/>
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Principais variações */}
-            <div className="card p-4">
-              <p className="text-xs font-bold text-operis-dark mb-3">Principais variações</p>
-              <div className="space-y-2">
-                {variacoes.map((v) => (
-                  <div key={v.label} className="flex items-start justify-between gap-3 py-2 border-b border-gray-50 last:border-0">
-                    <div className="flex items-start gap-2.5">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${v.color}`}>
-                        {v.up ? <TrendingUp size={13} className="text-white"/> : <TrendingDown size={13} className="text-white"/>}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-800">{v.label}</p>
-                        <p className="text-[10px] text-gray-400">{v.sub}</p>
-                      </div>
-                    </div>
-                    <span className={`text-xs font-black flex-shrink-0 ${v.up ? 'text-red-500' : 'text-green-600'}`}>
-                      {v.delta}
-                    </span>
+                    <span className="font-bold">{d.value}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Right panel */}
+        <div className="space-y-4">
+          {/* Evolução ciclo */}
+          <div className="card p-4 opacity-50">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-operis-dark">Evolução do ciclo médio</p>
+              <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-1 rounded">Em breve</span>
+            </div>
+            <div className="flex gap-4 mb-2 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1"><span className="w-4 h-px border-b-2 border-dashed border-slate-300 inline-block"/>Período anterior</span>
+              <span className="flex items-center gap-1"><span className="w-4 h-px bg-operis-dark inline-block"/>Período atual</span>
+            </div>
+            <ResponsiveContainer width="100%" height={160}>
+              <LineChart data={lineData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+                <XAxis dataKey="t" tick={{ fontSize: 8 }} stroke="#ccc"/>
+                <YAxis tick={{ fontSize: 8 }} stroke="#ccc"/>
+                <Tooltip contentStyle={{ fontSize:10, borderRadius:8 }}/>
+                <Line type="monotone" dataKey="anterior" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 2"/>
+                <Line type="monotone" dataKey="atual"    stroke="#0f3b52" strokeWidth={2}   dot={false}/>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Principais variações */}
+          <div className="card p-4 opacity-50">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-operis-dark">Principais variações</p>
+              <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-1 rounded">Em breve</span>
+            </div>
+            <div className="space-y-2">
+              {variacoes.map((v) => (
+                <div key={v.label} className="flex items-start justify-between gap-3 py-2 border-b border-gray-50 last:border-0">
+                  <div className="flex items-start gap-2.5">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${v.color}`}>
+                      {v.up ? <TrendingUp size={13} className="text-white"/> : <TrendingDown size={13} className="text-white"/>}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-800">{v.label}</p>
+                      <p className="text-[10px] text-gray-400">{v.sub}</p>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-black flex-shrink-0 ${v.up ? 'text-red-500' : 'text-green-600'}`}>
+                    {v.delta}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
 
       {tab === 'Turnos' && isTurnos && Array.isArray(turnosData) && turnosData.length > 0 && (
         <div className="card overflow-hidden">

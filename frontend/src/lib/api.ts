@@ -157,6 +157,16 @@ export function useComparativoTurnos(data?: string) {
   return useSWR(hasApiAccess() && data ? `/comparativos/turnos?data=${data}` : null, fetcher, SILENT);
 }
 
+export function useComparativoKpis(dataA?: string, dataB?: string) {
+  const url = dataA && dataB ? `/comparativos/kpis?dataA=${dataA}&dataB=${dataB}` : null;
+  return useSWR(hasApiAccess() ? url : null, fetcher, SILENT);
+}
+
+export function useComparativoGraficos(dataA?: string, dataB?: string) {
+  const url = dataA && dataB ? `/comparativos/graficos?dataA=${dataA}&dataB=${dataB}` : null;
+  return useSWR(hasApiAccess() ? url : null, fetcher, SILENT);
+}
+
 export function useAuthUser() {
   return useSWR(hasAuthToken() ? '/auth/me' : null, fetcher, SILENT);
 }

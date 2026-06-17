@@ -52,3 +52,27 @@ comparativosRouter.get('/maquina/:id', async (req, res, next) => {
     res.json(resultado);
   } catch (e) { next(e); }
 });
+
+// GET /api/comparativos/kpis?dataA=...&dataB=...
+comparativosRouter.get('/kpis', async (req, res, next) => {
+  try {
+    const dataA = new Date(String(req.query.dataA));
+    const dataB = new Date(String(req.query.dataB));
+    dataA.setHours(0,0,0,0);
+    dataB.setHours(0,0,0,0);
+    const resultado = await comparativosService.calcularKpisPeriodo(dataA, dataB);
+    res.json(resultado);
+  } catch (e) { next(e); }
+});
+
+// GET /api/comparativos/graficos?dataA=...&dataB=...
+comparativosRouter.get('/graficos', async (req, res, next) => {
+  try {
+    const dataA = new Date(String(req.query.dataA));
+    const dataB = new Date(String(req.query.dataB));
+    dataA.setHours(0,0,0,0);
+    dataB.setHours(0,0,0,0);
+    const resultado = await comparativosService.calcularGraficosPeriodo(dataA, dataB);
+    res.json(resultado);
+  } catch (e) { next(e); }
+});
