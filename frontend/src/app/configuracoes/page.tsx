@@ -480,7 +480,7 @@ function UsuariosSection({ currentRole }: { currentRole: string }) {
   const [users, setUsers]     = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [showPwd, setShowPwd]   = useState(false);
-  const [form, setForm]         = useState({ name: '', email: '', password: '', role: 'OPERADOR' });
+  const [form, setForm]         = useState({ name: '', username: '', email: '', password: '', role: 'OPERADOR' });
   const [error, setError]       = useState('');
   const [saving, setSaving]     = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -497,7 +497,7 @@ function UsuariosSection({ currentRole }: { currentRole: string }) {
     try {
       const created = await criarUsuario(form) as User;
       setUsers((p) => [...p, { ...created, active: true, createdAt: new Date().toISOString() }]);
-      setForm({ name: '', email: '', password: '', role: 'OPERADOR' });
+      setForm({ name: '', username: '', email: '', password: '', role: 'OPERADOR' });
       setShowForm(false);
     } catch { setError('Erro ao criar usuário. Verifique permissões e dados.'); }
     finally  { setSaving(false); }
@@ -610,7 +610,10 @@ function UsuariosSection({ currentRole }: { currentRole: string }) {
             <input placeholder="Nome completo" required value={form.name}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               className="input text-sm col-span-2" />
-            <input placeholder="E-mail" type="email" required value={form.email}
+            <input placeholder="Nome de usuário" required minLength={3} value={form.username}
+              onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
+              className="input text-sm" />
+            <input placeholder="E-mail (Opcional)" type="email" value={form.email}
               onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
               className="input text-sm" />
             <div className="relative">

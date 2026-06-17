@@ -128,15 +128,17 @@ configuracaoRouter.post('/usuarios', authorize('ADMIN'), async (req, res, next) 
     const bcrypt = await import('bcryptjs');
     const schema = z.object({
       name: z.string().min(2),
-      email: z.string().email(),
+      username: z.string().min(3),
+      email: z.string().email().optional().or(z.literal('')),
       password: z.string().min(6),
       role: z.enum(['ADMIN','SUPERVISOR','OPERADOR','VISUALIZADOR']),
     });
     const data = schema.parse(req.body);
+    const emailVal = data.email ? data.email : null;
     const hash = await bcrypt.default.hash(data.password, 10);
     const user = await prisma.user.create({
-      data: { ...data, password: hash },
-      select: { id: true, name: true, email: true, role: true },
+      data: { ...data, email: emailVal, password: hash },
+      select: { id: true, name: true, username: true, email: true, role: true },
     });
     res.status(201).json(user);
   } catch (e) { next(e); }

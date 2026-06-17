@@ -19,11 +19,12 @@ export default function LoginPage() {
   const [modo, setModo] = useState<'login' | 'registro'>('login');
 
   // Login
-  const [email,    setEmail]    = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
 
   // Registro
   const [nome,            setNome]            = useState('');
+  const [username,        setUsername]        = useState('');
   const [regEmail,        setRegEmail]        = useState('');
   const [regPwd,          setRegPwd]          = useState('');
   const [regConfirmPwd,   setRegConfirmPwd]   = useState('');
@@ -47,7 +48,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
       goTo('/central');
     } catch (err) {
       if (axios.isAxiosError(err) && !err.response) {
@@ -70,7 +71,7 @@ export default function LoginPage() {
     if (regPwd.length < 6)        { setError('Senha deve ter no mínimo 6 caracteres.'); return; }
     setLoading(true);
     try {
-      await register(nome, regEmail, regPwd, regConfirmPwd);
+      await register(nome, username, regEmail, regPwd, regConfirmPwd);
       goTo('/central');
     } catch (err) {
       const msg = axios.isAxiosError(err)
@@ -160,9 +161,9 @@ export default function LoginPage() {
           {modo === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">E-mail</label>
-                <input type="email" required autoComplete="email" placeholder="seu@email.com"
-                  value={email} onChange={e => setEmail(e.target.value)}
+                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Usuário ou E-mail</label>
+                <input type="text" required autoComplete="username" placeholder="seu.usuario ou email"
+                  value={identifier} onChange={e => setIdentifier(e.target.value)}
                   className={inputClass} style={inputStyle} />
               </div>
               <div>
@@ -191,8 +192,14 @@ export default function LoginPage() {
                   className={inputClass} style={inputStyle} />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">E-mail</label>
-                <input type="email" required autoComplete="email" placeholder="seu@email.com"
+                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Nome de Usuário</label>
+                <input type="text" required minLength={3} autoComplete="username" placeholder="seu.usuario"
+                  value={username} onChange={e => setUsername(e.target.value)}
+                  className={inputClass} style={inputStyle} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-300 mb-1.5">E-mail (Opcional)</label>
+                <input type="email" autoComplete="email" placeholder="seu@email.com"
                   value={regEmail} onChange={e => setRegEmail(e.target.value)}
                   className={inputClass} style={inputStyle} />
               </div>

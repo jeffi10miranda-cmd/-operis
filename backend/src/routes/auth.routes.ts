@@ -12,13 +12,14 @@ import { AppError } from '../middlewares/errorHandler';
 export const authRouter = Router();
 
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
+  identifier: z.string().min(1, 'Usuário ou e-mail é obrigatório'),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
 });
 
 const registerSchema = z.object({
   name:            z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').max(80),
-  email:           z.string().email('Email inválido'),
+  username:        z.string().min(3, 'Nome de usuário deve ter no mínimo 3 caracteres').max(30),
+  email:           z.string().email('Email inválido').optional().or(z.literal('')),
   password:        z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
   confirmPassword: z.string(),
 }).refine(d => d.password === d.confirmPassword, {
@@ -29,9 +30,16 @@ const registerSchema = z.object({
 // ── POST /api/auth/login ───────────────────────
 authRouter.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password } = loginSchema.parse(req.body);
+    const { identifier, password } = loginSchema.parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: identifier },
+          { username: identifier }
+        ]
+      }
+    });
 
     if (!user || !user.active) {
       throw new AppError('Credenciais inválidas', 401);
@@ -57,6 +65,7 @@ authRouter.post('/login', async (req: Request, res: Response, next: NextFunction
       user: {
         id: user.id,
         name: user.name,
+        username: user.username,
         email: user.email,
         role: user.role,
       },
@@ -69,25 +78,31 @@ authRouter.post('/login', async (req: Request, res: Response, next: NextFunction
 // ── POST /api/auth/register ───────────────────
 authRouter.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, email, password } = registerSchema.parse(req.body);
+    const { name, username, email, password } = registerSchema.parse(req.body);
+    const emailVal = email ? email : null;
 
-    const existente = await prisma.user.findUnique({ where: { email } });
-    if (existente) throw new AppError('Este e-mail já está em uso', 409);
+    if (emailVal) {
+      const existenteEmail = await prisma.user.findUnique({ where: { email: emailVal } });
+      if (existenteEmail) throw new AppError('Este e-mail já está em uso', 409);
+    }
+
+    const existenteUsername = await prisma.user.findUnique({ where: { username } });
+    if (existenteUsername) throw new AppError('Este nome de usuário já está em uso', 409);
 
     const hashed = await bcrypt.hash(password, 10);
     const user   = await prisma.user.create({
-      data: { name, email, password: hashed, role: 'OPERADOR', active: true },
+      data: { name, username, email: emailVal, password: hashed, role: 'OPERADOR', active: true },
     });
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { userId: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET as Secret,
       { expiresIn: (process.env.JWT_EXPIRES_IN || '8h') as SignOptions['expiresIn'] }
     );
 
     res.status(201).json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role },
     });
   } catch (err) {
     next(err);
@@ -99,7 +114,7 @@ authRouter.get('/me', authenticate, async (req: Request, res: Response, next: Ne
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.userId },
-      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      select: { id: true, name: true, username: true, email: true, role: true, createdAt: true },
     });
 
     if (!user) throw new AppError('Usuário não encontrado', 404);
@@ -187,9 +202,12 @@ authRouter.post('/google/callback', async (req: Request, res: Response, next: Ne
     let user = await prisma.user.findUnique({ where: { email: data.email } });
     
     if (!user) {
+      const baseUsername = data.email.split('@')[0];
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
       user = await prisma.user.create({
         data: {
           name: data.name || 'Usuário Google',
+          username: `${baseUsername}_${randomSuffix}`,
           email: data.email,
           googleId: data.id,
           role: 'OPERADOR',

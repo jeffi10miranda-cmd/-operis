@@ -58,6 +58,7 @@ async function main() {
     where: { email: 'admin@operis.com.br' },
     create: {
       name: 'Administrador OPERIS',
+      username: 'admin',
       email: 'admin@operis.com.br',
       password: adminHash,
       role: 'ADMIN',
@@ -71,6 +72,7 @@ async function main() {
     where: { email: 'supervisor@operis.com.br' },
     create: {
       name: 'Supervisor Operacional',
+      username: 'supervisor',
       email: 'supervisor@operis.com.br',
       password: supervisorHash,
       role: 'SUPERVISOR',

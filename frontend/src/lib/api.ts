@@ -187,7 +187,7 @@ export async function fetchUsuarios() {
   return api.get('/configuracao/usuarios').then((r) => r.data);
 }
 
-export async function criarUsuario(data: { name: string; email: string; password: string; role: string }) {
+export async function criarUsuario(data: { name: string; username: string; email: string; password: string; role: string }) {
   return api.post('/configuracao/usuarios', data).then((r) => r.data);
 }
 
@@ -268,15 +268,15 @@ export async function deletarTodosAlertasLidos() {
   return api.delete('/alertas/lidos').then(r => r.data);
 }
 
-export async function login(email: string, password: string) {
-  const { data } = await api.post('/auth/login', { email, password });
+export async function login(identifier: string, password: string) {
+  const { data } = await api.post('/auth/login', { identifier, password });
   localStorage.setItem('operis_token', data.token);
   disablePreviewMode();
   return data;
 }
 
-export async function register(name: string, email: string, password: string, confirmPassword: string) {
-  const { data } = await api.post('/auth/register', { name, email, password, confirmPassword });
+export async function register(name: string, username: string, email: string, password: string, confirmPassword: string) {
+  const { data } = await api.post('/auth/register', { name, username, email, password, confirmPassword });
   localStorage.setItem('operis_token', data.token);
   disablePreviewMode();
   return data;
