@@ -71,7 +71,6 @@ const alertasService = {
         where: {
           maquina: snapshot.maquina,
           tipo:    alerta.tipo,
-          lido:    false,
           criadoEm: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) },
         },
       });
@@ -88,7 +87,6 @@ const alertasService = {
         maquina: snapshot.maquina,
         tipo: 'MAQUINA_PARADA',
         criadoEm: { gte: new Date(Date.now() - 30 * 60 * 1000) }, // últimos 30 min
-        lido: false,
       },
     });
     if (recente) return;
@@ -157,7 +155,7 @@ const alertasService = {
     const { lido, maquina, severidade, tipo, page = 1, limit = 50 } = params;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { resolvidoEm: null };
     if (lido !== undefined) where.lido = lido;
     if (maquina) where.maquina = maquina;
     if (severidade) where.severidade = severidade;
@@ -188,22 +186,25 @@ const alertasService = {
 
   // ── Deletar alerta ────────────────────────────
   async deletar(id: string): Promise<void> {
-    await prisma.alerta.delete({ where: { id } });
+    await prisma.alerta.update({ where: { id }, data: { resolvidoEm: new Date() } });
   },
 
   // ── Deletar todos os lidos ────────────────────
   async deletarTodosLidos(): Promise<number> {
-    const { count } = await prisma.alerta.deleteMany({ where: { lido: true } });
+    const { count } = await prisma.alerta.updateMany({
+      where: { lido: true, resolvidoEm: null },
+      data: { resolvidoEm: new Date() }
+    });
     return count;
   },
 
   // ── Contagem por severidade (para badges) ─────
   async contarNaoLidos(): Promise<{ total: number; critico: number; atencao: number; info: number }> {
     const [total, critico, atencao, info] = await Promise.all([
-      prisma.alerta.count({ where: { lido: false } }),
-      prisma.alerta.count({ where: { lido: false, severidade: 'CRITICO' } }),
-      prisma.alerta.count({ where: { lido: false, severidade: 'ATENCAO' } }),
-      prisma.alerta.count({ where: { lido: false, severidade: 'INFO' } }),
+      prisma.alerta.count({ where: { lido: false, resolvidoEm: null } }),
+      prisma.alerta.count({ where: { lido: false, severidade: 'CRITICO', resolvidoEm: null } }),
+      prisma.alerta.count({ where: { lido: false, severidade: 'ATENCAO', resolvidoEm: null } }),
+      prisma.alerta.count({ where: { lido: false, severidade: 'INFO', resolvidoEm: null } }),
     ]);
     return { total, critico, atencao, info };
   },
