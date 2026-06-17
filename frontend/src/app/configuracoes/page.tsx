@@ -1023,9 +1023,9 @@ function DangerZoneSection() {
         <button
           onClick={handleWipe}
           disabled={wiping}
-          className="btn bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 h-10 w-full disabled:opacity-50"
+          className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-4 h-10 w-full rounded-xl disabled:opacity-50 transition-colors"
         >
-          {wiping ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
+          {wiping ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
           {wiping ? 'Apagando...' : 'Apagar Dados Operacionais'}
         </button>
       </div>
