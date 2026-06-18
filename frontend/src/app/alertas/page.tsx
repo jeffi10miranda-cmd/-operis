@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useAlertas, useContagemAlertas, marcarAlertaLido, marcarTodosAlertasLidos, deletarAlerta, deletarTodosAlertasLidos } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import { PageLoading } from '@/components/skeleton';
 import { AlertTriangle, Info, CheckCircle, Bell, Clock, Check, Trash2, LayoutGrid } from 'lucide-react';
 
@@ -55,6 +56,7 @@ export default function AlertasPage() {
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
   const [page, setPage] = useState(1);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const router = useRouter();
 
   const { data: contagem, isLoading: loadingCount, mutate: reloadContagem } = useContagemAlertas();
   const { data: alertasData, isLoading: loadingList, mutate: reloadAlertas } = useAlertas({
@@ -169,7 +171,8 @@ export default function AlertasPage() {
             return (
               <div
                 key={a.id}
-                className={`card border-l-4 ${cfg.border} ${cfg.bg} px-4 py-3 flex gap-3 items-start ${a.lido ? 'opacity-60' : ''}`}
+                onClick={() => router.push(`/central?maquina=${encodeURIComponent(a.maquina)}`)}
+                className={`card border-l-4 ${cfg.border} ${cfg.bg} px-4 py-3 flex gap-3 items-start cursor-pointer transition-all hover:shadow-md ${a.lido ? 'opacity-60' : ''}`}
               >
                 <div className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.badge}`}>
                   <Icon size={14} />
@@ -187,6 +190,7 @@ export default function AlertasPage() {
                   )}
                   <div className="mt-2">
                     <Link href={`/central?maquina=${encodeURIComponent(a.maquina)}`}
+                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-white text-operis-dark border border-slate-200 hover:border-operis-dark hover:bg-slate-50 transition-colors">
                       <LayoutGrid size={10} />
                       Ir para a máquina
@@ -201,7 +205,7 @@ export default function AlertasPage() {
                   <div className="flex gap-1">
                     {!a.lido && (
                       <button
-                        onClick={() => handleMarcarLido(a.id)}
+                        onClick={(e) => { e.stopPropagation(); handleMarcarLido(a.id); }}
                         disabled={loadingId === a.id}
                         title="Marcar como lido"
                         className="p-1 rounded-lg text-slate-400 hover:bg-green-50 hover:text-green-600 transition-colors disabled:opacity-40"
@@ -210,7 +214,7 @@ export default function AlertasPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => handleDeletar(a.id)}
+                      onClick={(e) => { e.stopPropagation(); handleDeletar(a.id); }}
                       disabled={loadingId === a.id}
                       title="Apagar alerta"
                       className="p-1 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-40"

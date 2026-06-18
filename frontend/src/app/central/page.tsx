@@ -486,7 +486,11 @@ function CentralPageContent() {
                 const Ico = alertIcons[sev] ?? AlertCircle;
                 const hora = new Date(a.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 return (
-                  <div key={a.id} className="alert-item-row">
+                  <div 
+                    key={a.id} 
+                    onClick={() => setSearchQuery(a.maquina)}
+                    className="alert-item-row cursor-pointer transition-colors hover:bg-slate-50"
+                  >
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${alertIconBg[sev]}`}>
                       <Ico size={16} className="text-white" />
                     </div>
