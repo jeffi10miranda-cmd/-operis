@@ -59,11 +59,13 @@ async function processarMaquina(
     : false;
 
   // Não sobrescreve snapshot se este turno específico tem override manual ativo
-  const hasOverride = await prisma.snapshotTurno.findFirst({
-    where: { maquina: row.maquina, data, turno, manualOverride: true },
-    select: { id: true },
+  const existing = await prisma.snapshotTurno.findFirst({
+    where: { maquina: row.maquina, data, turno },
   });
-  if (hasOverride) return;
+
+  if (existing?.manualOverride) return;
+
+  const statusChanged = existing ? existing.status !== statusEnum : false;
 
   // Upsert do snapshot
   const snapshot = await prisma.snapshotTurno.upsert({
@@ -98,6 +100,7 @@ async function processarMaquina(
       status: statusEnum,
       observacao: row.observacao || null,
       divergente,
+      ...(statusChanged ? { statusAtualizadoEm: new Date() } : {}),
     },
   });
 
@@ -132,8 +135,8 @@ async function buscarProduto(nomeProduto: string) {
 }
 
 // ── Detecta divergências vs padrão ────────────
-function detectarDivergencia(
-  row: SheetRow,
+export function detectarDivergencia(
+  row: { cicloAtual: number | null; cavidadeReal: number | null },
   produto: { ciclopadrao: number; cavidadepadrao: number }
 ): boolean {
   const limiteDesvio = parseFloat(process.env.ALERT_CICLO_DESVIO_PERCENT || '10') / 100;

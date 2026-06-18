@@ -1,9 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useAlertas, useContagemAlertas, marcarAlertaLido, marcarTodosAlertasLidos, deletarAlerta, deletarTodosAlertasLidos } from '@/lib/api';
 import { PageLoading } from '@/components/skeleton';
-import { AlertTriangle, Info, CheckCircle, Bell, Clock, Check, Trash2 } from 'lucide-react';
+import { AlertTriangle, Info, CheckCircle, Bell, Clock, Check, Trash2, LayoutGrid } from 'lucide-react';
 
 type Contagem = { total: number; critico: number; atencao: number; info: number };
 
@@ -184,6 +185,13 @@ export default function AlertasPage() {
                   {a.descricao && (
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{a.descricao}</p>
                   )}
+                  <div className="mt-2">
+                    <Link href={`/central?maquina=${encodeURIComponent(a.maquina)}`}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-white text-operis-dark border border-slate-200 hover:border-operis-dark hover:bg-slate-50 transition-colors">
+                      <LayoutGrid size={10} />
+                      Ir para a máquina
+                    </Link>
+                  </div>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                   <div className="flex items-center gap-1 text-xs text-slate-400">

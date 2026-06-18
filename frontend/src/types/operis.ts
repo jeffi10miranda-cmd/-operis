@@ -73,6 +73,8 @@ export interface Snapshot {
   observacao: string | null;
   divergente: boolean;
   manualOverride: boolean;
+  capturadoEm: string;
+  statusAtualizadoEm: string;
   produto?: Produto | null;
 }
 

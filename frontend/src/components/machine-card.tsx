@@ -27,6 +27,8 @@ interface MachineCardProps {
   divergent?: boolean;
   observation?: string | null;
   manualOverride?: boolean;
+  capturadoEm?: string;
+  statusAtualizadoEm?: string;
   onUpdated?: () => void;
 }
 
@@ -90,6 +92,7 @@ export function MachineCard({
   qtdAtual: qtdAtualProp,
   divergent, observation,
   manualOverride,
+  capturadoEm, statusAtualizadoEm,
   onUpdated,
 }: MachineCardProps) {
   const [localStatus, setLocalStatus]   = useState(status);
@@ -120,6 +123,18 @@ export function MachineCard({
     : 'bg-blue-400';
 
   const barWidth = cycleOff === null ? 0 : Math.min(Math.abs(cycleOff) + 50, 100);
+
+  const formatTempo = (dataISO?: string) => {
+    if (!dataISO) return '—';
+    const diff = Date.now() - new Date(dataISO).getTime();
+    if (diff < 0) return '0m';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const horaAtualizacao = capturadoEm ? new Date(capturadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
 
   async function handleToggle() {
     if (!maquina || loading) return;
@@ -274,8 +289,20 @@ export function MachineCard({
       </div>
 
       {/* Progress bar */}
-      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
         <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${barWidth}%` }} />
+      </div>
+
+      {/* Resumo de tempo e apontamento */}
+      <div className="bg-gray-50 rounded-lg p-2 mb-2 grid grid-cols-2 gap-2 text-center">
+        <div>
+          <p className="text-[9px] text-gray-400 uppercase tracking-wide">Tempo no Status</p>
+          <p className="text-xs font-bold text-operis-dark">{formatTempo(statusAtualizadoEm)}</p>
+        </div>
+        <div>
+          <p className="text-[9px] text-gray-400 uppercase tracking-wide">Última Leitura</p>
+          <p className="text-xs font-bold text-operis-dark">{horaAtualizacao}</p>
+        </div>
       </div>
 
       {/* Erro de salvamento */}

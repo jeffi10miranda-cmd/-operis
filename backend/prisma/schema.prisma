@@ -121,6 +121,7 @@ model SnapshotTurno {
   divergente      Boolean           @default(false)
   manualOverride  Boolean           @default(false)
   capturadoEm     DateTime          @default(now())
+  statusAtualizadoEm DateTime       @default(now())
 
   produto Produto? @relation(fields: [produtoId], references: [id])
   alertas Alerta[]

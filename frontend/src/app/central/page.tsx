@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useMemo, useState, useEffect, useRef, Suspense } from 'react';
 import {
   AlertCircle, TrendingUp, LayoutGrid, List, ChevronDown, Clock, Gauge, Search, X, ArrowRight,
 } from 'lucide-react';
@@ -24,9 +25,9 @@ const MOCK_KPIS: KPIsData = {
 };
 
 const MOCK_SNAPSHOTS: Snapshot[] = [
-  { id: '1', data: '', turno: 'PRIMEIRO', maquina: 'MÁQ 01', produtoNome: 'Frasco reto 12', cicloAtual: 50, cavidadeReal: 24, velocidade: 120, status: 'EM_PRODUCAO', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Frasco reto 12', ciclopadrao: 50, cavidadepadrao: 24, ativo: true, createdAt: '' } },
-  { id: '2', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 02', produtoNome: 'Tampa Kelly', cicloAtual: 20, cavidadeReal: 16, velocidade: 110, status: 'SETUP', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Tampa Kelly', ciclopadrao: 20, cavidadepadrao: 16, ativo: true, createdAt: '' } },
-  { id: '3', data: '', turno: 'TERCEIRO', maquina: 'MÁQ 03', produtoNome: 'Haste 48 mm', cicloAtual: 30, cavidadeReal: 32, velocidade: 95, status: 'REGULAGEM', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: true, manualOverride: false, produto: { id: '', codigo: '', descricao: 'Haste 48 mm', ciclopadrao: 30, cavidadepadrao: 28, ativo: true, createdAt: '' } },
+  { id: '1', data: '', turno: 'PRIMEIRO', maquina: 'MÁQ 01', produtoNome: 'Frasco reto 12', cicloAtual: 50, cavidadeReal: 24, velocidade: 120, status: 'EM_PRODUCAO', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, capturadoEm: new Date().toISOString(), statusAtualizadoEm: new Date().toISOString(), produto: { id: '', codigo: '', descricao: 'Frasco reto 12', ciclopadrao: 50, cavidadepadrao: 24, ativo: true, createdAt: '' } },
+  { id: '2', data: '', turno: 'SEGUNDO', maquina: 'MÁQ 02', produtoNome: 'Tampa Kelly', cicloAtual: 20, cavidadeReal: 16, velocidade: 110, status: 'SETUP', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: false, manualOverride: false, capturadoEm: new Date().toISOString(), statusAtualizadoEm: new Date().toISOString(), produto: { id: '', codigo: '', descricao: 'Tampa Kelly', ciclopadrao: 20, cavidadepadrao: 16, ativo: true, createdAt: '' } },
+  { id: '3', data: '', turno: 'TERCEIRO', maquina: 'MÁQ 03', produtoNome: 'Haste 48 mm', cicloAtual: 30, cavidadeReal: 32, velocidade: 95, status: 'REGULAGEM', op: null, qtdOP: null, qtdAtual: null, observacao: null, divergente: true, manualOverride: false, capturadoEm: new Date().toISOString(), statusAtualizadoEm: new Date().toISOString(), produto: { id: '', codigo: '', descricao: 'Haste 48 mm', ciclopadrao: 30, cavidadepadrao: 28, ativo: true, createdAt: '' } },
 ];
 
 const MOCK_ALERTS = [
@@ -71,9 +72,10 @@ function snapshotToCard(s: Snapshot) {
     cavityTarget: s.produto?.cavidadepadrao ?? null,
     qtdAtual: s.qtdAtual,
     velocity: s.velocidade,
-    divergent: s.divergente,
     observation: s.observacao,
     manualOverride: s.manualOverride,
+    capturadoEm: s.capturadoEm,
+    statusAtualizadoEm: s.statusAtualizadoEm,
   };
 }
 
@@ -201,7 +203,7 @@ function DigitalClock() {
   );
 }
 
-export default function CentralPage() {
+function CentralPageContent() {
   useSocket();
   const { turnoAtual: turnoView } = useTurno();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -216,8 +218,15 @@ export default function CentralPage() {
     }
   }, [ultimaDataObj, isAutoDate]);
 
-  const [searchQuery, setSearchQuery]   = useState('');
+  const searchParams = useSearchParams();
+  const maquinaQuery = searchParams.get('maquina') || '';
+  const [searchQuery, setSearchQuery]   = useState(maquinaQuery);
   const [statusFilter, setStatusFilter] = useState('TODOS');
+
+  // Ao chegar o parametro maquina, mostra todas as maquinas para evitar esconder no grid
+  useEffect(() => {
+    if (maquinaQuery) setSearchQuery(maquinaQuery);
+  }, [maquinaQuery]);
 
   const { data: kpisData, isLoading: kpiLoading, error: kpiError, mutate: reloadKpis } = useKPIs(dataFiltro);
   const { data: t1Raw, mutate: reloadT1 } = useSnapshotsHoje('PRIMEIRO', dataFiltro);
@@ -560,5 +569,13 @@ export default function CentralPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CentralPage() {
+  return (
+    <Suspense fallback={<CentralSkeleton />}>
+      <CentralPageContent />
+    </Suspense>
   );
 }

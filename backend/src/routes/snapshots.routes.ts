@@ -4,6 +4,8 @@ import { Router } from 'express';
 import { prisma } from '../config/database';
 import { authenticate } from '../middlewares/auth.middleware';
 import { Turno, StatusOperacional } from '@prisma/client';
+import { detectarDivergencia } from '../services/snapshots.service';
+import { alertasService } from '../services/alertas.service';
 
 export const snapshotsRouter = Router();
 snapshotsRouter.use(authenticate);
@@ -237,21 +239,33 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
       orderBy: { capturadoEm: 'desc' },
     });
 
-    // Resolve produtoId: usa o ID enviado diretamente ou busca pelo nome
+    // Resolve produtoId e o produto completo: usa o ID enviado ou busca pelo nome
     let produtoId: string | null = produtoIdParam ?? null;
-    if (!produtoId && produtoNome) {
-      const prod = await prisma.produto.findFirst({
+    let produtoObj = null;
+    if (produtoId) {
+      produtoObj = await prisma.produto.findUnique({ where: { id: produtoId } });
+    } else if (produtoNome) {
+      produtoObj = await prisma.produto.findFirst({
         where: { descricao: { equals: produtoNome, mode: 'insensitive' } },
-        select: { id: true },
       }) ?? await prisma.produto.findFirst({
         where: { descricao: { contains: produtoNome, mode: 'insensitive' } },
-        select: { id: true },
       });
-      produtoId = prod?.id ?? null;
+      produtoId = produtoObj?.id ?? null;
+    } else if (existing?.produtoId) {
+      produtoObj = await prisma.produto.findUnique({ where: { id: existing.produtoId } });
+      produtoId = produtoObj?.id ?? null;
     }
 
+    let updatedSnapshot;
+
     if (existing) {
-      const updated = await prisma.snapshotTurno.update({
+      const statusChanged = status !== undefined && status !== existing.status;
+      
+      const novoCicloAtual = cicloAtual !== undefined && cicloAtual !== '' ? Number(cicloAtual) : existing.cicloAtual;
+      const novaCavidadeReal = cavidadeReal !== undefined && cavidadeReal !== '' ? Number(cavidadeReal) : existing.cavidadeReal;
+      const divergente = produtoObj ? detectarDivergencia({ cicloAtual: novoCicloAtual, cavidadeReal: novaCavidadeReal }, produtoObj) : existing.divergente;
+
+      updatedSnapshot = await prisma.snapshotTurno.update({
         where: { id: existing.id },
         data: {
           ...(status      !== undefined ? { status:      status as StatusOperacional } : {}),
@@ -262,31 +276,45 @@ snapshotsRouter.patch('/maquina/:maquina', async (req, res, next) => {
           ...(cavidadeReal !== undefined && cavidadeReal !== '' ? { cavidadeReal: Number(cavidadeReal) } : {}),
           ...(observacao  !== undefined ? { observacao }                              : {}),
           ...(produtoNome !== undefined ? { produtoNome, produtoId }                 : {}),
+          divergente,
           manualOverride: liberarSync ? false : true,
           capturadoEm: new Date(),
+          ...(statusChanged ? { statusAtualizadoEm: new Date() } : {}),
         },
       });
-      return res.json(updated);
+    } else {
+      const novoCicloAtual = cicloAtual !== undefined && cicloAtual !== '' ? Number(cicloAtual) : null;
+      const novaCavidadeReal = cavidadeReal !== undefined && cavidadeReal !== '' ? Number(cavidadeReal) : null;
+      const divergente = produtoObj ? detectarDivergencia({ cicloAtual: novoCicloAtual, cavidadeReal: novaCavidadeReal }, produtoObj) : false;
+
+      // Sem snapshot existente — cria um novo com o turno selecionado
+      updatedSnapshot = await prisma.snapshotTurno.create({
+        data: {
+          data,
+          turno:       turnoAlvo,
+          maquina:     req.params.maquina,
+          status:      (status || 'INATIVA') as StatusOperacional,
+          op:          op          ?? null,
+          qtdOP:       qtdOP       != null ? Number(qtdOP)       : null,
+          qtdAtual:    qtdAtual    != null ? Number(qtdAtual)    : null,
+          cicloAtual:  novoCicloAtual,
+          cavidadeReal:novaCavidadeReal,
+          produtoNome: produtoNome ?? null,
+          produtoId:   produtoId,
+          observacao:  observacao  ?? null,
+          divergente,
+          manualOverride: true,
+        },
+      });
+    }
+    if (updatedSnapshot.divergente && produtoObj) {
+      await alertasService.gerarAlertasDivergencia(updatedSnapshot, produtoObj);
+    }
+    
+    if (['MANUTENCAO', 'FERRAMENTARIA'].includes(updatedSnapshot.status)) {
+      await alertasService.gerarAlertaParada(updatedSnapshot);
     }
 
-    // Sem snapshot existente — cria um novo com o turno selecionado
-    const created = await prisma.snapshotTurno.create({
-      data: {
-        data,
-        turno:       turnoAlvo,
-        maquina:     req.params.maquina,
-        status:      (status || 'INATIVA') as StatusOperacional,
-        op:          op          ?? null,
-        qtdOP:       qtdOP       != null ? Number(qtdOP)       : null,
-        qtdAtual:    qtdAtual    != null ? Number(qtdAtual)    : null,
-        cicloAtual:  cicloAtual  != null && cicloAtual  !== '' ? Number(cicloAtual)  : null,
-        cavidadeReal:cavidadeReal!= null && cavidadeReal !== '' ? Number(cavidadeReal): null,
-        produtoNome: produtoNome ?? null,
-        produtoId:   produtoId,
-        observacao:  observacao  ?? null,
-        manualOverride: true,
-      },
-    });
-    res.json(created);
+    res.json(updatedSnapshot);
   } catch (e) { next(e); }
 });
